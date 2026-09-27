@@ -1,0 +1,181 @@
+---
+title: QA & Design
+description: The render-backed QA protocol and the design skill's full component state coverage.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Running QA
+
+Say the trigger phrase and the `qa` skill runs the matching scope:
+
+| Phrase | Scope |
+| --- | --- |
+| "do QA" | Scoped to the latest change |
+| "full QA" | Complete audit of the product surface |
+| "QA today" | Everything changed today |
+
+## The three non-negotiables
+
+1. **Staging, never production.** QA runs against a staging environment, full
+   stop.
+2. **Every page with UI is rendered in a real browser.** A fetch or a `200`
+   status is not a check — it false-passes blank heroes, covered text, broken
+   contrast, and missing sections. The **`qa-render-gate`** enforces this: it
+   blocks a fetch-only verification during an active QA pass and requires an
+   actual render.
+3. **Two-gate verdicts.** Every change-related check needs both:
+   - **WORKS** — the functionality behaves correctly.
+   - **MATCHES INTENT** — it's what was actually asked for.
+
+   A change that works but isn't what was asked for is a **FAIL** — wrong
+   target, wrong behavior, over-delivery, or under-delivery all count.
+
+<Aside type="note">
+Intent is written down **before** the implementation is read, so the verdict
+isn't quietly rationalized around whatever got built.
+</Aside>
+
+## Building the test list mechanically
+
+A full run doesn't enumerate the product surface in prose — it builds the test
+list with scripts, so a route nobody thought to test can't slip through. Every
+project declares a **`qa-contract.json`** (principals, where ownership lives, how
+to read backend state, what leaves the system and where the fake sink is, and
+which files declare routes), and the Phase-0 pipeline runs off it:
+
+- **`qa-surface-inventory.js`** — walks the tree and enumerates every surface a
+  human sees, classifying each into eight kinds (collection, scalar, record,
+  input, artifact, transition, generated, mirrored). The output is a *floor* you
+  widen, never shrink.
+- **`qa-interaction-inventory.js`** — for a multi-principal app, every ownership
+  entity × every write path becomes one cross-actor test point.
+- **`qa-registry-merge.js`** — assembles the generated fragments into the test
+  registry and emits a **prefix manifest**: the canonical test-ID set stated as
+  fact, so a legitimate single-case area can't go invisible.
+- **`qa-contract-validate.js`** — checks the contract against a mechanical floor,
+  and hard-blocks a production target.
+- **`qa-egress-probe.js`** / **`qa-case-decay.js`** — prove the fake egress sink
+  is real before a run trusts it, and tier boringly-green cases into a sampled set
+  so the mandatory load stays bounded across runs.
+
+<Aside type="note">
+The whole pipeline is plain Node — it runs identically on macOS, WSL and Linux.
+The contract lives at the project root; start from the shipped
+`qa-contract.example.json` and see the contract-conformance reference.
+</Aside>
+
+## Setting up QA in a project
+
+A one-time setup wires the protocol into a project. Five steps:
+
+**1. Declare the contract.** Copy the shipped example to the project root and edit
+it for your project — principals, where ownership lives, the backend read command,
+the egress sink, and which files declare routes. The contract-conformance reference
+walks each field.
+
+```sh
+cp <pack>/skills/qa/references/qa-contract.example.json ./qa-contract.json
+# edit it, then validate against the mechanical floor (hard-blocks a prod target):
+node <pack>/bin/qa-contract-validate.js --contract ./qa-contract.json --probe
+```
+
+A `CONTRACT-OK` receipt is the confirmation; until it exists the new dimensions
+report but don't gate.
+
+**2. Build the test list.** On a full run the `qa` skill runs the Phase-0 pipeline
+for you (surface + interaction inventories → `qa-registry-merge.js` → the prefix
+manifest). You can also run them by hand from the project root while iterating on
+the contract.
+
+**3. Arm the gates.** Gates are inert until an enable flag exists — globally at
+`$KIRO_HOME/gates/<gate>.enabled` or per-project at `<project>/.kiro/gates/`. Arm
+one at a time:
+
+```sh
+touch ~/.kiro/gates/qa-render-gate.enabled     # block fetch-instead-of-render during QA
+touch ~/.kiro/gates/qa-report-gate.enabled     # block a report missing verdicts/receipt
+# optional, opt-in: block a mission-touched surface with no test case
+touch ~/.kiro/gates/qa-surface-gate.enabled
+```
+
+**4. Wire the deterministic teeth.** `ci/qa-gate.sh` recomputes the coverage
+receipt and exits non-zero on `COVERAGE-FAIL`. Add it to CI, or as a git pre-push
+hook:
+
+```sh
+ln -s ../../ci/qa-gate.sh .git/hooks/pre-push
+```
+
+**5. Run it.** Say **"do QA"** for a scoped run or **"full QA"** for a complete
+audit. The skill creates its own `.qa-active` sentinel (which arms the render gate),
+follows the protocol, and writes the report + coverage receipt.
+
+<Aside type="note">
+Everything is Node + POSIX `sh` — the same setup works on macOS, WSL and Linux. The
+pack ships the scripts; you only add the project's `qa-contract.json`, the gate
+flags you want armed, and the CI hook.
+
+On a **display-less Linux** host, QA still renders **headed** (never headless) by
+running the browser under a virtual framebuffer — install Xvfb
+(`sudo apt-get install -y xvfb`) and the pack auto-wraps the Playwright MCP in
+`xvfb-run`. macOS and Windows use their native desktop and need nothing extra.
+</Aside>
+
+## Full-run coverage
+
+A full QA run has to prove it actually covered everything, not just assert it
+did. **`qa-coverage-receipt.js`** is the coverage oracle: it reconciles the
+ledger of what was tested against the registry and the prefix manifest and emits
+`COVERAGE-OK` only when every item is accounted for. It blocks on orphaned test
+IDs, a verdict on a test that never ran, too many not-executed cases, coverage
+below the bar, uninspected routes, **manifest drift** (a case missing from the
+canonical set), and — when the surface gate is armed — a surface the mission
+*touched* that carries no test case. Retired and sampled-decay cases are excluded
+from the denominator and reported separately, never silently dropped.
+
+The **`qa-report-gate`** blocks a written QA report that's missing intent
+verdicts, render evidence, or that `COVERAGE-OK` line. And because Kiro's stop
+hook can't hard-block, **`ci/qa-gate.sh`** gives the same teeth a second home: it
+recomputes the receipt and exits non-zero on `COVERAGE-FAIL`, so a CI job or a git
+pre-push hook stops a change that would ship with orphaned cases.
+
+## Definition of done
+
+Done means a **filed, human-verified checklist** — not the agent's own say-so.
+The agent that built or fixed something cannot self-certify that it's QA'd;
+the checklist has to be produced and then actually verified against the running
+app.
+
+<Aside type="caution">
+"The data doesn't exist" is never a skip reason. Create the test data, run the
+check, clean it up afterward.
+</Aside>
+
+## The `design` skill
+
+Reach for `design` when building or changing any front-end surface —
+components, layouts, pages, forms, flows, styles, or theme. It:
+
+- **Reuses the project's own design system** rather than inventing a second
+  one.
+- Enforces the **full component state set** for every component:
+  - default
+  - hover
+  - focus
+  - disabled
+  - loading
+  - empty
+  - error
+
+Loading, empty, and error are the three that hide dead-ends — a component that
+only has its default state looks finished and isn't. `design` builds it right;
+QA proves the states exist and lead somewhere.
+
+## Code-only work is a different lane
+
+Work with no product surface — tooling, internal scripts, backend-only logic
+with no UI impact — is verified by its own test suite (red-green: a failing
+test that now passes, and the adjacent case re-checked), not by the browser
+protocol above. Don't run a full QA reconciliation against product test
+coverage for a change the product surface never touched.

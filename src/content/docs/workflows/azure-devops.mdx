@@ -1,0 +1,104 @@
+---
+title: Azure DevOps power
+description: Reporting and reading Azure DevOps work items through the ado-write and ado-telemetry skills.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+## It's a skill, not a router agent
+
+ADO integration is delivered as the **`ado-write`** skill — not a dedicated
+routing agent. Any agent that has the skill available can post an update; you
+don't need to switch context to a separate ADO-only assistant.
+
+The **`azure-devops`** MCP server is wired up automatically at install. Its
+tools are invoked through the `ado-write` skill, which knows RevStar's exact
+conventions for how a ticket should be written — the MCP server itself is just
+transport.
+
+## Writing conventions
+
+`ado-write` enforces the house format so tickets are consistent across the
+team:
+
+- **Hour fields are always `0`.** Time is owned by the PM in ADO. Effort is
+  reported **narratively** in the summary text, never as a structured hours
+  value.
+- **Exact daily task title:** `<Role> - <Full Name> - <MMDDYYYY>`, where `Role`
+  is `Dev`, `DevOps`, or `AI`.
+- **Field name is `Custom.TeamCode`** — not `RSCode`.
+- **Summary format** follows four sections: Summary, Changes, Notes, Testing.
+
+<Aside type="tip">
+Reporting progress to your daily task is **standard practice**, not something
+you opt into — as work happens, post the update. Only destructive or unusual
+edits (changing state, reassigning, editing someone else's item, deletes) are
+gated behind explicit confirmation.
+</Aside>
+
+## Set up ADO for a client (org, project, PAT)
+
+ADO is configured **per client** and injected automatically when you
+`kiroctl open` a project bound to that client — no manual `export`. Set three
+things on the client, once:
+
+- **Org URL + default project** — in the GUI client form (the "Azure DevOps org
+  URL" / "ADO default project" fields, right where you add the client), or from
+  the CLI:
+
+  ```sh
+  kiroctl client set-ado --slug <client> \
+    --ado-org https://dev.azure.com/YourOrg --ado-project "Your Project"
+  ```
+
+- **PAT** (scoped per client, never global) — from the GUI PAT field, or piped in
+  from the CLI (never passed as an argument):
+
+  ```sh
+  printf '%s' '<pat>' | kiroctl client set-pat --slug <client>
+  ```
+
+The PAT is stored in the OS keychain (falling back to a `0600`-permission file)
+and is **never** written into `mcp.json`. It (and the org/project) are injected when
+you **`open`** the project — so set the PAT *before* opening, and if you change it,
+**relaunch** the session for the new value to take effect (a running session keeps
+what it launched with).
+
+### What `open` injects
+
+When you open a project bound to the client, `kiroctl open` injects the client's
+ADO config into the session in **both** naming conventions, so both consumers
+work with zero manual setup:
+
+- `AZURE_DEVOPS_PAT` / `AZURE_DEVOPS_ORG_URL` / `AZURE_DEVOPS_DEFAULT_PROJECT` —
+  for the **`azure-devops` MCP server** (the `ado-write` / `ado-telemetry` skills).
+- `ADO_PAT` / `ADO_ORG_URL` / `ADO_PROJECT` — for the **`kiroctl ado`** CLI.
+
+`mcp.json` references org/project from the environment
+(`${AZURE_DEVOPS_ORG_URL}` etc.), so a session automatically targets the *bound
+client's* org and project — not a hardcoded one.
+
+<Aside type="note">
+Opening via the GUI is the same as `kiroctl open --dir <dir> --run` — both inject
+the ADO env and launch. `kiroctl open --dir <dir>` **without** `--run` is preflight
+only (it checks and prints, doesn't launch).
+</Aside>
+
+## Reading without writing
+
+For read-only lookups — current sprint, open work items, the epics/features
+roadmap — use the sibling:
+
+- `kiroctl ado telemetry`, or
+- the **`ado-telemetry`** skill from inside a session.
+
+<Steps>
+1. Confirm the client has org, project and PAT set: `kiroctl client list` (org/project
+   show inline; the PAT is stored separately).
+2. Open a project bound to that client (GUI or `kiroctl open --dir <dir> --run`). Inside
+   that session everything is wired — no `export` needed.
+3. Pull a read-only snapshot: `kiroctl ado telemetry --json` (or just ask for sprint
+   status in-session).
+4. When you're ready to log work, let the agent invoke `ado-write` — don't hand-edit
+   the ticket format yourself.
+</Steps>

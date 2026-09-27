@@ -1,28 +1,51 @@
 ---
 title: Try Kiro
-description: Interactive, replay-based demo sessions showing what Kiro does with the RevStar capabilities.
+description: Replay-based demo sessions showing what the dev agent and the RevStar.ai skills do — then how to run it yourself.
 ---
 
 import KiroSession from '../../../components/kiro-session/KiroSession.astro';
+import { Aside } from '@astrojs/starlight/components';
 
 These are **replayed demo sessions** — a faithful mock of the Kiro chat window
 using recorded prompts and responses. Click **Run demo** to watch a session play
-out. Nothing runs live; it's here to show you the shape of a real Kiro
-interaction before you try it yourself.
+out. Nothing runs live; it's here to show you the shape of a real session before
+you try it yourself.
+
+<Aside type="note">
+Everything below runs under the **`dev`** agent (Opus). `dev` orchestrates:
+it applies skills itself and delegates well-specified implementation to the
+**`coder`** sub-agent (Sonnet) and read-only lookups to **`scout`** (Sonnet).
+It never routes to a Haiku model or an auto-router.
+</Aside>
+
+## A mission, driven autonomously
+
+The flagship workflow: hand `dev` a plan with the **`/goal`** loop and it sets a
+**mission** (via the `mission` skill), enumerates every phase in an **acceptance
+ledger**, then works phase-by-phase — delegating the build to the **`coder`**
+sub-agent and lookups to **`scout`**, running the **`qa`** skill at the end of
+each phase, and finally auditing the ledger requirement-by-requirement and
+clearing. It only stops for a genuine one-way door; every reversible fork is
+decided and logged.
+
+<KiroSession session="mission" />
 
 ## A feature, end to end
 
-The full development lifecycle in one vibe session: pull a user story from Azure
-DevOps, route it to the `code` agent to implement, review the result, hand the
-backend work off, then file a protocol-compliant delivery task back in ADO. This
-is condensed from a **real** session (User Story 136662).
+The full development lifecycle in one session: pull a user story from Azure
+DevOps, have `dev` delegate the build to the **`coder`** sub-agent, review the
+result, hand the backend work off, then file a protocol-compliant delivery task
+back in ADO with the **`ado-write`** skill (title `<Role> - <Full Name> -
+<MMDDYYYY>`, hour fields always `0`, `Custom.TeamCode`). Condensed from a **real**
+session (User Story 136662).
 
 <KiroSession session="lifecycle" />
 
 ## A pre-PR code review
 
 The `review` skill reads for security and correctness first, orders findings by
-severity, and explains *why* each one matters — then gives a clear verdict.
+severity, and explains *why* each one matters — then gives a clear verdict. (It
+complements `qa`, which proves the rendered result in a real browser.)
 
 <KiroSession session="review" />
 
@@ -49,3 +72,17 @@ changes with file references, what was tested, and the risks — ready to paste
 into a ticket.
 
 <KiroSession session="breakdown" />
+
+## Now try it yourself
+
+Launch a client-bound session (see [Your first project](../first-run/)), switch
+to the orchestrator, and give it a task:
+
+```text
+/agent dev
+Pull context from ADO #<id> and implement it; delegate the build to coder,
+then review it and run the qa skill.
+```
+
+For multi-phase work, set a mission and let the `/goal` loop drive it — see
+[Missions & the /goal loop](../../workflows/missions/) for ready-to-use prompts.

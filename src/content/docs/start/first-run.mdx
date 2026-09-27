@@ -1,0 +1,136 @@
+---
+title: Your first project
+description: Bind a client, scaffold a project, and launch Kiro through the SSO login it needs.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+## Why you can't just run `kiro-cli`
+
+A bare `kiro-cli` launch fails with:
+
+```
+profileArn is required
+```
+
+Kiro needs an AWS Identity Center (SSO) login before it can start a session,
+and that login is scoped to a specific client. `kiroctl` supplies this by
+launching through a **client-bound project** — a project directory tied to one
+client's Identity Center configuration — rather than launching Kiro directly.
+
+## Set up a client-bound project (terminal)
+
+<Steps>
+
+1. **Add the client.** This registers the client's Identity Center start URL
+   and region:
+
+   ```sh
+   kiroctl client add --name "Acme" --idc-url https://acme.awsapps.com/start --region us-east-1
+   ```
+
+2. **Create the project**, bound to that client:
+
+   ```sh
+   kiroctl project new --dir ~/kiro/acme --client acme --scaffold
+   ```
+
+3. **Open it.** This performs the client's Identity Center login and launches
+   the session:
+
+   ```sh
+   kiroctl open --dir ~/kiro/acme --run
+   ```
+
+   This logs you in via SSO, then launches `kiro-cli chat --agent dev` inside
+   the project directory.
+
+</Steps>
+
+## Ways to open a project
+
+Setup is a one-time thing; opening a project is what you do every day. There are
+three ways, and they all end up running the same `kiroctl open … --run` (SSO
+enforced, repos ensured) — pick whichever fits how you work.
+
+### From the desktop app (UI)
+
+Double-click the **"RevStar.ai - New Project"** desktop icon (or run `kiroctl gui`) and
+click **Open** on the project. The GUI is best when you want to browse your
+projects, add a client, link repos, or set a PAT — the whole setup surface in one
+window. See the [Install & Setup guide](/start/install/#5-use-the-desktop-app)
+for a screenshot walkthrough.
+
+### From the terminal dropdown or its desktop icon
+
+When you create or open a project, Kiro registers **two per-project shortcuts** so
+you can jump straight into that project:
+
+- a **terminal dropdown entry** — a Windows Terminal profile, a macOS iTerm2
+  dynamic profile, or a Linux applications `.desktop` entry; and
+- a **"RevStar.ai - &lt;project&gt;" desktop icon**.
+
+Either one opens *that* project directly in a terminal window (it runs
+`kiroctl open --dir <dir> --run`, so the client's SSO is enforced). This is the
+fastest way back into a project you work in often. Re-running the front-end
+installer registers these for every existing project, too.
+
+<Aside type="tip">
+Missing the dropdown/icon (e.g. you cloned to a new location)? Re-register:
+`bash tools/install-macos-frontend.sh` (macOS) / `bash tools/install-linux-frontend.sh`
+(Linux) / `.\tools\New-KiroProject.ps1 -Install` (Windows).
+</Aside>
+
+### Terminal only
+
+Skip the shortcuts and open from a shell — best for scripts, SSH sessions, or if
+you live in the terminal:
+
+```sh
+kiroctl open --dir ~/kiro/acme --run
+# or, from inside the project (--dir defaults to the current directory):
+cd ~/kiro/acme && kiroctl open --run
+```
+
+<Aside type="note">
+Each client is one AWS Identity Center boundary with its own isolated
+credential store. Switching clients never mixes credentials — a project bound
+to one client cannot authenticate against another.
+</Aside>
+
+## Multi-repo projects
+
+A project can span **several repos** — a frontend and a backend, say — so one
+Kiro session and one mission work across all of them. A project is a workspace
+folder bound to one client, plus a `.kiro/repos.json` mapping of its repos. Each
+repo is either **cloned** from a git URL into a workspace subfolder, or **linked**
+(symlinked) from a clone you already have.
+
+From the GUI (`kiroctl gui`): when creating a project, add one or more repos —
+each row is a **git URL** (cloned) or an **existing local path** (linked); the
+project opens only once every repo is in place. Existing projects get an **Add
+repo** box.
+
+From the CLI:
+
+```sh
+kiroctl project add-repo --dir ~/kiro/acme --url git@github.com:org/frontend.git
+kiroctl project add-repo --dir ~/kiro/acme --link /path/to/existing/backend
+kiroctl project repos    --dir ~/kiro/acme
+kiroctl open             --dir ~/kiro/acme --run   # clones any missing, then launches
+```
+
+A **single-repo** project opens the session **inside that repo**; a **multi-repo**
+project opens at the workspace with each repo as a subfolder.
+
+<Aside type="note">
+Cloning private repos uses your **existing git/GitHub credentials** (SSH or
+`gh`) — the client governs AWS/Kiro SSO, not GitHub. A URL with an embedded
+credential is rejected. `open` clones only what's missing and never auto-pulls,
+so it won't disturb a working tree.
+</Aside>
+
+## Next step
+
+Continue to [Try Kiro](/start/try-kiro/) for a walkthrough of your first
+session.
