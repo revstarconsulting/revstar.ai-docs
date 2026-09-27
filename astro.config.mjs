@@ -13,7 +13,7 @@ export default defineConfig({
   base,
   integrations: [
     starlight({
-      title: 'Kiro Workbench Docs',
+      title: 'RevStar.ai Docs',
       description:
         'Install kiroctl, bind a client-scoped project, and use the delivered Kiro capabilities — agents, skills, gates, steering, missions and QA.',
       // Pagefind full-text search is on by default for static builds.
@@ -22,7 +22,7 @@ export default defineConfig({
         {
           label: 'Start Here',
           items: [
-            { label: 'What is Kiro Workbench?', slug: 'start/overview' },
+            { label: 'What is RevStar.ai?', slug: 'start/overview' },
             { label: 'Install', slug: 'start/install' },
             { label: 'Your first project', slug: 'start/first-run' },
             { label: 'Try Kiro', slug: 'start/try-kiro' },
