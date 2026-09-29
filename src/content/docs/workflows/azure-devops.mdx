@@ -39,8 +39,8 @@ gated behind explicit confirmation.
 ## Set up ADO for a client (org, project, PAT)
 
 ADO is configured **per client** and injected automatically when you
-`kiroctl open` a project bound to that client — no manual `export`. Set three
-things on the client, once:
+`kiroctl open` a project bound to that client — no manual `export`. Set these
+on the client, once:
 
 - **Org URL + default project** — in the GUI client form (the "Azure DevOps org
   URL" / "ADO default project" fields, right where you add the client), or from
@@ -49,6 +49,16 @@ things on the client, once:
   ```sh
   kiroctl client set-ado --slug <client> \
     --ado-org https://dev.azure.com/YourOrg --ado-project "Your Project"
+  ```
+
+- **Project manager (PM)** — who ADO **information requests** get assigned to (the
+  `grill-me` skill files one when a question can't be answered). Set it in the GUI's
+  **ADO PM** field: where the PAT allows it, that's a **dropdown pulled from your ADO
+  project's members** (type to fuzzy-match); otherwise it's a free-text box you type
+  the name into. Or from the CLI:
+
+  ```sh
+  kiroctl client set-ado --slug <client> --ado-pm "Jordan Lee"
   ```
 
 - **PAT** (scoped per client, never global) — from the GUI PAT field, or piped in
@@ -72,7 +82,9 @@ work with zero manual setup:
 
 - `AZURE_DEVOPS_PAT` / `AZURE_DEVOPS_ORG_URL` / `AZURE_DEVOPS_DEFAULT_PROJECT` —
   for the **`azure-devops` MCP server** (the `ado-write` / `ado-telemetry` skills).
-- `ADO_PAT` / `ADO_ORG_URL` / `ADO_PROJECT` — for the **`kiroctl ado`** CLI.
+- `ADO_PAT` / `ADO_ORG_URL` / `ADO_PROJECT` (+ `ADO_PM` when a PM is set) — for the
+  **`kiroctl ado`** CLI, and `ADO_PM` is the PM that `grill-me` assigns information
+  requests to.
 
 `mcp.json` references org/project from the environment
 (`${AZURE_DEVOPS_ORG_URL}` etc.), so a session automatically targets the *bound
