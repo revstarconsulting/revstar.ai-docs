@@ -1,0 +1,84 @@
+---
+title: The execution pipeline
+description: When to use what — how planning, grill-me, estimation, the mission/goal loop and QA sequence to take work from an idea to a verified change.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The skills aren't picked at random. There's a standard order for taking work
+from an idea to a verified, shipped change — and a shortcut for bug-fixing when
+the work is already well described. This page shows **when to use what**.
+
+## The general path — new features and changes
+
+```text
+Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (/goal)
+                                                          └─ auto-runs /qa on every
+                                                             surface-changing phase
+```
+
+<Steps>
+
+1. **Planning mode** — shape the idea into a written plan. Do this for anything
+   non-trivial or multi-phase; it's the artifact every later stage works from.
+
+2. **`grill-me`** — interrogate the plan adversarially until every gap and open
+   decision is resolved. A plan that survives grill-me is one the mission can
+   build without guessing.
+
+3. **`estimation`** *(optional)* — get the autonomous build wall-clock **plus**
+   the human-oversight hours, or a quick scope/risk read. Skip it for small,
+   clearly-scoped work; reach for it before committing to anything sizeable.
+   AI/LLM workloads are flagged and estimated separately.
+
+4. **Run the mission** — set the plan as the mission and drive it with `/goal`.
+   It builds phase by phase and **automatically runs the `qa` skill** on every
+   phase that changes product surface, so verification isn't a separate step you
+   have to remember. The mission clears only when the acceptance ledger is all
+   **MET**.
+
+</Steps>
+
+<Aside type="caution" title="The mission needs an environment">
+Running QA during the mission renders pages in a **real browser**, so the
+mission needs access to a **staging or dev environment** before you start it.
+Without somewhere to render and exercise the app, QA can't return its two-gate
+verdict (**works** *and* **matches intent**). Give the mission that access up
+front.
+</Aside>
+
+## The bug-fixing fast path
+
+When the bugs are **clearly described** — a document, screenshots, or concrete
+repro steps — you don't need the planning → grill-me → estimation run. Go
+straight to the mission with the bug-fixing prompt:
+
+```text
+Run the mission (/goal) with the bug-fixing prompt  →  /qa verifies each fix
+```
+
+The mission reproduces each reported issue, fixes it, and uses the QA protocol
+to confirm the fix against the running app — retrying until it's genuinely
+resolved, not trusted on say-so.
+
+<Aside type="note">
+"Clearly described" is the bar. If the bugs are vague or entangled with new
+behaviour, treat it as a change and take the general path (plan → grill-me)
+first — otherwise the mission is guessing at intent.
+</Aside>
+
+## Ready-to-use prompts
+
+The exact, paste-ready `/goal` prompts for **both** paths — a full end-to-end
+build and an evidence-driven bug-fixing backlog — live on the
+[Missions & /goal](/workflows/missions/) page.
+
+## The skills in this pipeline
+
+| Stage | Skill | Its page |
+| --- | --- | --- |
+| Stress-test the plan | `grill-me` | [Skills](/capabilities/skills/) |
+| Size the work | `estimation` | [Skills](/capabilities/skills/) |
+| Drive multi-phase work | `mission` | [Missions & /goal](/workflows/missions/) |
+| Verify every change | `qa` | [QA & Design](/workflows/qa-and-design/) |
+| Build UI right before QA | `design` | [QA & Design](/workflows/qa-and-design/) |
