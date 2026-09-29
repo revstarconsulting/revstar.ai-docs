@@ -5,7 +5,7 @@ description: Fixes for the v1 issues developers actually hit.
 
 | Symptom | Fix |
 | --- | --- |
-| Install stops with `FATAL: no co-located kiro/ and KIRO_REGISTRY_ROOT is not set` | Pass the registry location explicitly: `KIRO_REGISTRY_ROOT=../rvst-registry`. |
+| Install stops with `FATAL: no co-located kiro/ and KIRO_REGISTRY_ROOT is not set` | Pass the registry location explicitly: `KIRO_REGISTRY_ROOT=../revstar.ai-registry`. |
 | A bare `kiro-cli` says `profileArn is required` | Don't launch `kiro-cli` directly. Launch via `kiroctl open` (or the platform launcher), which handles client login first. |
 | A gate doesn't fire | Confirm its `.enabled` flag file actually exists, then run `node kiro/gates/selftest.js` to isolate which gate is misbehaving. |
 | ADO tools return `401` or no data | Your PAT isn't set (or lacks scope). Set it with `kiroctl client set-pat`, using a token with **Work Items Read & Write**. |
