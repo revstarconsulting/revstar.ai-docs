@@ -69,6 +69,15 @@ The contract lives at the project root; start from the shipped
 
 A one-time setup wires the protocol into a project. Five steps:
 
+<Aside type="caution" title="No reachable target = QA silently degrades">
+QA renders and tests against the contract's `baseUrl` — it does **not** deploy
+the app itself. If the run host can't reach that target — no staging/dev URL set,
+no network path to it, or nothing deployed there — QA can't render, quietly
+degrades, and a mission can look like it "ran QA" without actually exercising
+anything. Set up a **reachable** staging/dev target when you link the project —
+**before** the first mission — not after the fact.
+</Aside>
+
 **1. Declare the contract.** Copy the shipped example to the project root and edit
 it for your project — principals, where ownership lives, the backend read command,
 the egress sink, and which files declare routes. The contract-conformance reference

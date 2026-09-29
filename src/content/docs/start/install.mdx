@@ -12,7 +12,7 @@ and your Azure DevOps PAT.
 <LinkCard
   title="Full reference: INSTALL.md on GitHub"
   description="The authoritative, always-current install reference (v1 branch)."
-  href="https://github.com/revstarconsulting/rvst-cli/blob/v1/INSTALL.md"
+  href="https://github.com/revstarconsulting/revstar.ai/blob/v1/INSTALL.md"
 />
 
 ## 1. Prerequisites
@@ -27,11 +27,11 @@ and your Azure DevOps PAT.
 RevStar.ai ships as two repos, cloned **side by side**:
 
 ```sh
-git clone https://github.com/revstarconsulting/rvst-cli.git
-git clone https://github.com/revstarconsulting/rvst-registry.git
+git clone https://github.com/revstarconsulting/revstar.ai.git
+git clone https://github.com/revstarconsulting/revstar.ai-registry.git
 ```
 
-`rvst-cli` holds the `kiroctl` CLI and installers; `rvst-registry` holds the
+`revstar.ai` holds the `kiroctl` CLI and installers; `revstar.ai-registry` holds the
 content pack (agents, skills, gates, steering).
 
 <Aside type="caution" title="Use git clone — not a “Download ZIP”">
@@ -43,32 +43,32 @@ desktop launcher**. Always `git clone`.
 <Aside type="tip" title="Let your Kiro do it">
 You can hand this to an existing Kiro session:
 
-> `git clone` https://github.com/revstarconsulting/rvst-cli.git and
-> https://github.com/revstarconsulting/rvst-registry.git side by side, then from
-> inside `rvst-cli` run the installer for my OS with
-> `KIRO_REGISTRY_ROOT=../rvst-registry`. Then verify with `kiroctl doctor` and
+> `git clone` https://github.com/revstarconsulting/revstar.ai.git and
+> https://github.com/revstarconsulting/revstar.ai-registry.git side by side, then from
+> inside `revstar.ai` run the installer for my OS with
+> `KIRO_REGISTRY_ROOT=../revstar.ai-registry`. Then verify with `kiroctl doctor` and
 > `kiroctl doctor --governance`. Don't commit any secrets.
 </Aside>
 
 ## 3. Run the installer
 
-From inside `rvst-cli`, point the installer at your `rvst-registry` clone:
+From inside `revstar.ai`, point the installer at your `revstar.ai-registry` clone:
 
 <Tabs syncKey="os">
   <TabItem label="macOS" icon="apple">
     ```sh
-    KIRO_REGISTRY_ROOT=../rvst-registry ./installers/install-macos.sh
+    KIRO_REGISTRY_ROOT=../revstar.ai-registry ./installers/install-macos.sh
     ```
   </TabItem>
   <TabItem label="Linux" icon="linux">
     ```sh
-    KIRO_REGISTRY_ROOT=../rvst-registry ./installers/install-linux.sh
+    KIRO_REGISTRY_ROOT=../revstar.ai-registry ./installers/install-linux.sh
     ```
   </TabItem>
   <TabItem label="Windows" icon="seti:windows">
     Run in PowerShell (it provisions the WSL side and the Windows launcher):
     ```powershell
-    $env:KIRO_REGISTRY_ROOT="..\rvst-registry"
+    $env:KIRO_REGISTRY_ROOT="..\revstar.ai-registry"
     .\installers\install-windows.ps1
     ```
   </TabItem>
@@ -93,7 +93,7 @@ they only inject mission state and write turn receipts).
 
 ```sh
 kiroctl doctor
-node ../rvst-registry/kiro/gates/selftest.js
+node ../revstar.ai-registry/kiro/gates/selftest.js
 kiroctl doctor --governance
 ```
 

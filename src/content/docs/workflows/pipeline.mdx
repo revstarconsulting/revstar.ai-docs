@@ -43,8 +43,9 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
 Running QA during the mission renders pages in a **real browser**, so the
 mission needs access to a **staging or dev environment** before you start it.
 Without somewhere to render and exercise the app, QA can't return its two-gate
-verdict (**works** *and* **matches intent**). Give the mission that access up
-front.
+verdict (**works** *and* **matches intent**) — it silently degrades. Declare a
+reachable target in the project's `qa-contract.json` when you link the project;
+see [Setting up QA in a project](/workflows/qa-and-design/#setting-up-qa-in-a-project).
 </Aside>
 
 ## The bug-fixing fast path
