@@ -35,7 +35,19 @@ client's Identity Center configuration — rather than launching Kiro directly.
    kiroctl project new --dir ~/kiro/acme --client acme --scaffold
    ```
 
-3. **Open it.** This performs the client's Identity Center login and launches
+3. **Point QA at your environment** so a mission's `/qa` has a reachable target
+   (without one it silently degrades):
+
+   ```sh
+   kiroctl project set-env --dir ~/kiro/acme \
+     --base-url https://staging.acme.test --env staging --branch develop
+   ```
+
+   The GUI captures the same fields on the new-project form and in the guided
+   setup; change them later per project via **QA env**. This scaffolds
+   `qa-contract.json` — see [QA & Design](/workflows/qa-and-design/#setting-up-qa-in-a-project).
+
+4. **Open it.** This performs the client's Identity Center login and launches
    the session:
 
    ```sh
@@ -58,7 +70,9 @@ enforced, repos ensured) — pick whichever fits how you work.
 Double-click the **"RevStar.ai - New Project"** desktop icon (or run `kiroctl gui`) and
 click **Open** on the project. The GUI is best when you want to browse your
 projects, add a client, link repos, or set a PAT — the whole setup surface in one
-window. See the [Install & Setup guide](/start/install/#5-use-the-desktop-app)
+window. You can also **edit in place** without recreating anything: a client's
+**Edit ADO** (org/project) and a project's **QA env** (staging URL, environment,
+target branch, backend access). See the [Install & Setup guide](/start/install/#5-use-the-desktop-app)
 for a screenshot walkthrough.
 
 ### From the terminal dropdown or its desktop icon
@@ -129,6 +143,20 @@ Cloning private repos uses your **existing git/GitHub credentials** (SSH or
 credential is rejected. `open` clones only what's missing and never auto-pulls,
 so it won't disturb a working tree.
 </Aside>
+
+## Orient in an existing codebase
+
+When you link a repo you don't know, run the **`project-map`** skill once to build
+a navigation map, so later sessions (and missions) jump straight to the right
+files instead of re-scanning the tree:
+
+> "map this project" · "audit the codebase" · "where is everything"
+
+It writes a concise `.kiro/architecture.md` — stack, entry points, a directory
+map, data models, routes, key modules, and the build/test/run commands — and
+keeps a one-line pointer in project steering so it's read on demand. Re-run it
+after a big structural change. For full shareable docs (ERD / API / rendered
+diagrams), use the `kb` skill instead.
 
 ## Next step
 
