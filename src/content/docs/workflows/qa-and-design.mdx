@@ -92,6 +92,24 @@ node <pack>/bin/qa-contract-validate.js --contract ./qa-contract.json --probe
 A `CONTRACT-OK` receipt is the confirmation; until it exists the new dimensions
 report but don't gate.
 
+<Aside type="tip" title="Let linking scaffold it">
+`kiroctl` can capture the target when you link the project, so QA has a reachable
+target from the very first mission:
+
+```sh
+kiroctl project set-env --dir <project> \
+  --base-url https://staging.example.com --env staging --branch develop \
+  --backend-query 'ssh staging-host "psql -d appdb -At -c {sql}"'
+```
+
+The GUI **new-project form** and the **guided setup** capture the same fields —
+staging/dev URL, environment, target branch, and backend (SSH/DB) access. Linking
+scaffolds a minimal `qa-contract.json` and a `qa-test-cases/test-credentials.md`
+stub (list your test users there), and **never overwrites** a contract you've
+hand-authored. The target branch is injected as `TARGET_BRANCH` for the mission,
+and `kiroctl doctor --dir <project>` WARNs until a reachable target is set.
+</Aside>
+
 **2. Build the test list.** On a full run the `qa` skill runs the Phase-0 pipeline
 for you (surface + interaction inventories → `qa-registry-merge.js` → the prefix
 manifest). You can also run them by hand from the project root while iterating on
