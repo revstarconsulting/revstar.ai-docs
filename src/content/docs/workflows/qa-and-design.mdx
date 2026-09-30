@@ -102,9 +102,10 @@ kiroctl project set-env --dir <project> \
   --backend-query 'ssh staging-host "psql -d appdb -At -c {sql}"'
 ```
 
-The GUI **new-project form** and the **guided setup** capture the same fields —
-staging/dev URL, environment, target branch, and backend (SSH/DB) access. Linking
-scaffolds a minimal `qa-contract.json` and a `qa-test-cases/test-credentials.md`
+The GUI's **New project** wizard has a QA step that captures the same fields —
+staging/dev URL, environment, target branch, and backend (SSH/DB) access — and
+the project detail's **QA environment** card lets you edit them any time after.
+Linking scaffolds a minimal `qa-contract.json` and a `qa-test-cases/test-credentials.md`
 stub (list your test users there), and **never overwrites** a contract you've
 hand-authored. The target branch is injected as `TARGET_BRANCH` for the mission,
 and `kiroctl doctor --dir <project>` WARNs until a reachable target is set.

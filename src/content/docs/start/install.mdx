@@ -113,39 +113,48 @@ kiroctl gui
 ```
 
 It opens in your default browser on `127.0.0.1` (loopback only, gated by a
-per-launch token). From here you add clients, create projects, link repos, and
-manage your Azure DevOps PAT.
+per-launch token). The app is a **two-pane, project-first** layout: your
+projects on the left, the selected project's editable detail on the right.
 
-![The RevStar.ai project GUI — projects, add a client, create a new project, and per-client Azure DevOps PAT.](../../../assets/gui/overview.png)
+{/* TODO: refresh GUI screenshots for the two-pane redesign */}
 
-### 5a. Add a client
+### 5a. The project list and status badges
 
-A **client** is one AWS Identity Center (SSO) boundary — its own isolated
-credential store. Add one per AWS account you work in.
+The left pane lists every project you've created, each with three status
+badges so you can see what needs attention without opening it:
 
-![Add a client: display name, region, and the IdC start URL.](../../../assets/gui/add-client.png)
+- **SSO** — signed in, or needs sign-in.
+- **ADO** — ready, or not set up.
+- **Repos** — present, or one or more missing.
 
-- **Display name** — e.g. `Acme` (used to derive the client slug).
-- **Region** — the client's AWS region, e.g. `us-east-1`.
-- **IdC start URL** — the Identity Center start URL, e.g. `https://acme.awsapps.com/start`.
+A **filter** box at the top narrows the list as you type. Click a project to
+load its detail on the right. Folders on disk that look like projects but
+aren't registered yet appear below the list under **Other folders found**,
+each with a one-click **Set up**.
 
-<Aside type="note">
-Switching clients never mixes credentials — a project bound to one client can't
-authenticate against another. The client governs **AWS/Kiro SSO only**, not GitHub.
-</Aside>
+### 5b. Edit a project in place
 
-### 5b. Create a project and link its repos
+Selecting a project shows its full detail on the right, split into
+inline-editable sections — no separate screens, no re-running a wizard to
+change something:
 
-Give the project a name, pick its client, then add one or more **repos**. A
-project can span several repos (e.g. a frontend and a backend), so one Kiro
-session works across all of them.
+<Steps>
 
-![Create a new project: name, client, and a repo row set to “clone” with a git URL.](../../../assets/gui/create-project.png)
+1. **Client & sign-in** — the client's Identity Center start URL, region, and
+   AWS account; **Sign in** or **Re-authenticate**; and, when the client is
+   shared, which other projects use it.
+2. **Azure DevOps** — the board mode (**RevStar ADO**, the **client's own
+   ADO**, or **none**), the org URL, the ADO project, and the project manager
+   (a typeahead against your ADO project's members where a PAT allows it,
+   otherwise free text).
+3. **Repos** — every repo in the project, added by **git URL** (cloned) or
+   **local path** (linked, with a **Browse…** picker). **Remove** first shows a
+   git-safety preview — a dirty working tree, unpushed commits, or no
+   upstream — so you don't lose work by accident.
+4. **QA environment** — staging URL, environment, target branch, and optional
+   backend access, kept in sync with the project's `qa-contract.json`.
 
-Each repo row is one of:
-
-- **clone** — paste a **git URL**; it's cloned into the project workspace.
-- **link** — point at an **existing local clone**; it's symlinked in.
+</Steps>
 
 <Aside type="caution" title="Cloning uses your own git credentials">
 Private-repo clones use your existing git/GitHub credentials (SSH or `gh`). A URL
@@ -153,41 +162,35 @@ with an embedded credential (`https://user:token@…`) is **rejected** — use S
 a credential helper.
 </Aside>
 
-#### Browse for a local path
+### 5c. Create a project — the guided wizard
 
-For a **link**, click **Browse…** to pick the folder instead of typing it. Under
-WSL the picker gives you quick-jump shortcuts to your **Windows** filesystem
-(`C:\Users\…`) as well as the WSL home — folders that are git repos are flagged.
+The **New project** button (top-right) opens a single guided wizard:
 
-![The folder picker: quick-jump roots for WSL home, the Windows user dir, and the C: drive.](../../../assets/gui/browse.png)
+**Client → Project & repos → Azure DevOps (RevStar / client's own / none) → QA
+→ Review → Create → Sign in → Launch**
 
-Click **Create & open** and the project opens in a terminal — Kiro logs in via
-the client's SSO, clones any missing repos, and launches the session over the
-whole workspace.
+Nothing is saved until you confirm on the **Review** step — Create then writes
+everything at once. If a repo fails to clone, you get a **Retry** rather than a
+half-created project.
 
-### 5c. Add repos to an existing project
+### 5d. Settings and Azure DevOps PATs
 
-Every project in **Your projects** shows its repos and an inline **Add repo**
-box (with its own **Browse…**), so you can attach more repos any time. Use
-**Open** to launch a project's session.
+The gear icon opens the **Settings** drawer:
 
-![Your projects: a project showing its linked repos plus an inline Add-repo box.](../../../assets/gui/projects.png)
-
-### 5d. Set the Azure DevOps PAT (per client)
-
-Reporting work to Azure DevOps needs your **own** PAT (Work Items Read & Write),
-stored **per client**. Paste it once in the PAT card; it's saved to your OS
-keychain (with a `0600`-file fallback), injected as `AZURE_DEVOPS_PAT` when you
-open a project for that client, and **never shown back** or written to config.
-
-![Azure DevOps PAT card: one row per client, set or clear the PAT.](../../../assets/gui/pat.png)
+- **Default ADO** — the org/PAT new projects default to when they pick RevStar ADO.
+- **Saved PATs** — add, rename, replace the secret on, or delete a PAT. A PAT
+  is saved once and reused across every project that needs it; it's stored in
+  your OS keychain (with a `0600`-file fallback) and never shown back or
+  written to config.
+- **Unused clients** — clients no projects currently use, with a one-click delete.
 
 <Aside type="tip">
 Prefer the CLI? `kiroctl client set-pat --slug <client>` reads the PAT from stdin
 (never the argument list).
 </Aside>
 
----
+Each project also has a **Report a bad run** action, for flagging a session
+that went wrong.
 
 ## 6. Updating later
 

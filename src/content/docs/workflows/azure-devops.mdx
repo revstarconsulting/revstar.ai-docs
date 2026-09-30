@@ -42,9 +42,9 @@ ADO is configured **per client** and injected automatically when you
 `kiroctl open` a project bound to that client — no manual `export`. Set these
 on the client, once:
 
-- **Org URL + default project** — in the GUI client form (the "Azure DevOps org
-  URL" / "ADO default project" fields, right where you add the client), or from
-  the CLI:
+- **Org URL + default project** — in the GUI, from the selected project's
+  **Azure DevOps** card (**Edit**) — the org URL and project fields there — or
+  from the CLI:
 
   ```sh
   kiroctl client set-ado --slug <client> \
@@ -52,16 +52,16 @@ on the client, once:
   ```
 
 - **Project manager (PM)** — who ADO **information requests** get assigned to (the
-  `grill-me` skill files one when a question can't be answered). Set it in the GUI's
-  **ADO PM** field: where the PAT allows it, that's a **dropdown pulled from your ADO
-  project's members** (type to fuzzy-match); otherwise it's a free-text box you type
-  the name into. Or from the CLI:
+  `grill-me` skill files one when a question can't be answered). Set it in the same
+  **Azure DevOps** card's **PM** field: where the PAT allows it, that's a **typeahead
+  pulled from your ADO project's members** (type to fuzzy-match); otherwise it's a
+  free-text box you type the name into. Or from the CLI:
 
   ```sh
   kiroctl client set-ado --slug <client> --ado-pm "Jordan Lee"
   ```
 
-- **PAT** (scoped per client, never global) — from the GUI PAT field, or piped in
+- **PAT** (scoped per client, never global) — from the same card, or piped in
   from the CLI (never passed as an argument):
 
   ```sh
