@@ -33,6 +33,26 @@ re-prompting the session until every success criterion is met, rather than
 stopping after one pass. Point it at a plan and it will keep working — building,
 auditing, running QA, fixing gaps — until the goal is genuinely done.
 
+## The preflight gate
+
+Setting a mission runs a **preflight** that checks the approved process is in
+place before work starts — because the most common bad run is one where a step
+was skipped, not a tool bug. `mission-state.js --init` verifies:
+
+- **QA environment valid** (both feature and bug-fix missions) — a non-production
+  `qa-contract.json` whose probes pass and whose `baseUrl` is reachable, so QA can
+  actually render and test.
+- **grill-me receipt** (feature missions) — a receipt keyed to the plan file's
+  hash, so an ungrilled or since-edited plan is caught.
+- **bug-report artifact** (bug-fix missions) — a real bug report to work from.
+
+A gap is a **hard but overridable** block: it names exactly what's missing, warns
+that skipping it raises the error / regression / defect rate, and **refuses to
+start** unless you pass `--ack-skipped "qa,grill-me"` (which records the skip). An
+autonomous kickoff therefore stops rather than running misconfigured. The ack is
+**separate from `--preapproved`** — pre-approving reversible decisions never
+silently waives a missing QA environment or an ungrilled plan.
+
 ## The acceptance ledger
 
 Every mission carries an **acceptance ledger** — one line per requirement,
