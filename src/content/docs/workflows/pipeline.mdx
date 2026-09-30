@@ -19,12 +19,16 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
 
 <Steps>
 
-1. **Planning mode** — shape the idea into a written plan. Do this for anything
-   non-trivial or multi-phase; it's the artifact every later stage works from.
+1. **Planning mode** — shape the idea into a written **plan file** (`plan.md`). Do this
+   for anything non-trivial or multi-phase; the file is the artifact every later stage
+   works from — grill-me hardens it, and the mission runs and audits against it.
 
 2. **`grill-me`** — interrogate the plan adversarially until every gap and open
-   decision is resolved. A plan that survives grill-me is one the mission can
-   build without guessing.
+   decision is resolved. It works on the **plan file**: if the plan lives only in chat
+   it writes `plan.md` first, then **folds each resolved decision into the file in place**
+   and records a **receipt keyed to the plan's hash**. A plan that survives grill-me is
+   one the mission can build without guessing — and the mission preflight checks that
+   receipt, so an ungrilled (or since-edited) plan is caught.
 
 3. **`estimation`** *(optional)* — get the autonomous build wall-clock **plus**
    the human-oversight hours, or a quick scope/risk read. Skip it for small,
