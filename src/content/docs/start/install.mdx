@@ -144,9 +144,11 @@ change something:
    AWS account; **Sign in** or **Re-authenticate**; and, when the client is
    shared, which other projects use it.
 2. **Azure DevOps** — the board mode (**RevStar ADO**, the **client's own
-   ADO**, or **none**), the org URL, the ADO project, and the project manager
+   ADO**, or **none**), the org URL, the ADO project, the project manager
    (a typeahead against your ADO project's members where a PAT allows it,
-   otherwise free text).
+   otherwise free text), and the **PAT this project uses** — pick any saved PAT
+   or **none**. Org, project and PM apply to the client (and any projects that
+   share it); the PAT binds this project only. Manage saved PATs in **Settings**.
 3. **Repos** — every repo in the project, added by **git URL** (cloned) or
    **local path** (linked, with a **Browse…** picker). **Remove** first shows a
    git-safety preview — a dirty working tree, unpushed commits, or no
