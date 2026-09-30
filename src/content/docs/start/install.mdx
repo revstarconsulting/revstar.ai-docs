@@ -199,6 +199,31 @@ A verified pull of both repos + reinstall — bolt-on, never subtract, so your o
 customizations are preserved. Restart your Kiro session afterward so steering,
 skills and MCP servers reload. (On Windows, run it inside WSL.)
 
+## Release channels — beta vs stable
+
+RevStar.ai ships on two channels:
+
+- **`beta`** (the default) — the active line, where new features land first. Every
+  existing install is on beta; `kiroctl update` keeps it current.
+- **`stable`** — a slower channel promoted from beta only after a full QA pass. Opt
+  in **at install time**:
+
+  ```sh
+  ./install.sh --channel stable        # macOS / Linux / WSL
+  .\install.ps1 -Channel stable        # Windows PowerShell
+  ```
+
+The channel is recorded in `kiroctl-install.json`, and `kiroctl update` then pulls
+that channel's line — so a stable install stays on stable and a beta install stays
+on beta, with no flags to remember. `kiroctl version` and `kiroctl doctor` show
+your current channel and version, and the GUI header shows them too.
+
+<Aside type="note">
+Features documented here land on **beta** first; anything not yet promoted to
+stable is marked *beta* on the page. Switching channels is done by re-installing
+with (or without) `--channel stable`.
+</Aside>
+
 ## Next step
 
 Continue to [Your first project](/start/first-run/) for the client → project →
