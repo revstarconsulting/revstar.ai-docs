@@ -43,8 +43,8 @@ client's Identity Center configuration — rather than launching Kiro directly.
      --base-url https://staging.acme.test --env staging --branch develop
    ```
 
-   The GUI captures the same fields on the new-project form and in the guided
-   setup; change them later per project via **QA env**. This scaffolds
+   The GUI's new-project wizard has the same QA step; change these later per
+   project via its **QA environment** card. This scaffolds
    `qa-contract.json` — see [QA & Design](/workflows/qa-and-design/#setting-up-qa-in-a-project).
 
 4. **Open it.** This performs the client's Identity Center login and launches
@@ -67,13 +67,35 @@ enforced, repos ensured) — pick whichever fits how you work.
 
 ### From the desktop app (UI)
 
-Double-click the **"RevStar.ai - New Project"** desktop icon (or run `kiroctl gui`) and
-click **Open** on the project. The GUI is best when you want to browse your
-projects, add a client, link repos, or set a PAT — the whole setup surface in one
-window. You can also **edit in place** without recreating anything: a client's
-**Edit ADO** (org/project) and a project's **QA env** (staging URL, environment,
-target branch, backend access). See the [Install & Setup guide](/start/install/#5-use-the-desktop-app)
-for a screenshot walkthrough.
+Double-click the **"RevStar.ai - New Project"** desktop icon (or run `kiroctl gui`).
+The app is a two-pane, project-first layout:
+
+- **Left — your projects.** Each row shows status badges at a glance: SSO
+  **signed in** / **needs sign-in**, **ADO ready** / not set, and repos
+  **present** / missing. Click a project to select it; a **filter** box narrows
+  the list.
+- **Right — the selected project's detail.** Everything about that project is
+  inline-editable, no separate screens: **Client & sign-in** (IdC URL, region,
+  AWS account, **Sign in** / **Re-authenticate**, and a "used by" note when the
+  client is shared with other projects), **Azure DevOps** (RevStar ADO / the
+  client's own ADO / none, org, project, and a PM field), **Repos** (add by git
+  URL or local path, with a **Browse…** picker; **Remove** shows a git-safety
+  preview — dirty working tree, unpushed commits, no upstream — before it acts),
+  and **QA environment** (staging URL, environment, target branch, backend
+  access).
+
+**New project** (top-right) opens a single guided wizard — Client → Project &
+repos → Azure DevOps (RevStar / the client's own / none) → QA → Review → Create
+→ Sign in → Launch. Nothing is written until you confirm on the Review step; if
+a repo fails to clone during Create, you get a **Retry**.
+
+The gear icon opens the **Settings** drawer: the default ADO org/PAT used by
+new projects, your **saved PATs** (add, rename, replace the secret, or delete),
+and any **unused clients**. Folders the app finds that aren't yet a project
+show up under **Other folders found**, with a one-click **Set up**.
+
+See the [Install & Setup guide](/start/install/#5-use-the-desktop-app) for the
+full walkthrough.
 
 ### From the terminal dropdown or its desktop icon
 
@@ -120,10 +142,11 @@ folder bound to one client, plus a `.kiro/repos.json` mapping of its repos. Each
 repo is either **cloned** from a git URL into a workspace subfolder, or **linked**
 (symlinked) from a clone you already have.
 
-From the GUI (`kiroctl gui`): when creating a project, add one or more repos —
-each row is a **git URL** (cloned) or an **existing local path** (linked); the
-project opens only once every repo is in place. Existing projects get an **Add
-repo** box.
+From the GUI (`kiroctl gui`): the new-project wizard's **Project & repos** step
+adds one or more repos — each row is a **git URL** (cloned) or an **existing
+local path** (linked); the project is created only once every repo is in
+place. An existing project's **Repos** card has its own **Add repo** row for
+attaching more later.
 
 From the CLI:
 
