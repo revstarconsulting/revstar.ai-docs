@@ -1,6 +1,6 @@
 ---
 title: Command reference
-description: The complete kiroctl command surface — 14 commands, one line each.
+description: The complete kiroctl command surface — 17 commands, one line each.
 ---
 
 `kiroctl` is the only CLI surface. The commands below are the complete set —
@@ -22,6 +22,9 @@ there is no `link`, `unlink`, or `install @latest`.
 | `kiroctl registry fetch \| verify` | Fetch or verify the signature of the capability registry. |
 | `kiroctl update [--check] [--registry <path>]` | Update kiroctl itself; `--check` reports without applying. |
 | `kiroctl version` | Print the installed `kiroctl` version. |
+| `kiroctl client set-ado --slug <s> [--ado-org --ado-project --ado-pm]` | Set the client's Azure DevOps org URL, default project, and PM (injected on open). |
+| `kiroctl project set-env --dir [--base-url --env --branch --backend-query]` | Capture the project's staging/dev QA target + access; scaffolds `qa-contract.json`. |
+| `kiroctl mission-report [--dir] [--transcript]` | Write a local, secret-scrubbed diagnostics bundle for auditing a mission run (no upload). |
 
 ## What doesn't exist
 
