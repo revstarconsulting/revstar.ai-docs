@@ -25,7 +25,7 @@ Use it for: "implement X", "why is this failing", "set this as the mission",
 
 ## `coder` — implementation sub-agent
 
-Model: **`claude-sonnet-5`**.
+Model: **`claude-sonnet-5.5`**.
 
 The sub-agent `dev` delegates to for well-specified builds. Builds exactly the
 spec it's handed — no scope expansion, no architectural decisions of its own —
@@ -37,7 +37,7 @@ open-ended tasks.
 
 ## `scout` — read-only lookups
 
-Model: **`claude-sonnet-5`**.
+Model: **`claude-sonnet-5.5`**.
 
 Cheap file and symbol search — "where is X defined", "does this repo use Y".
 `write` and `shell` are denied, so it can gather but never change anything.
