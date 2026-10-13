@@ -144,10 +144,15 @@ Everything is Node + POSIX `sh` — the same setup works on macOS, WSL and Linux
 pack ships the scripts; you only add the project's `qa-contract.json`, the gate
 flags you want armed, and the CI hook.
 
-On a **display-less Linux** host, QA still renders **headed** (never headless) by
-running the browser under a virtual framebuffer — install Xvfb
-(`sudo apt-get install -y xvfb`) and the pack auto-wraps the Playwright MCP in
-`xvfb-run`. macOS and Windows use their native desktop and need nothing extra.
+QA renders every UI page in a **real browser** (never a fetch) and captures
+**screenshots** as the evidence. The browser runs **invisibly wherever a visible
+one would disrupt you**: under a virtual framebuffer on **display-less Linux**
+(install Xvfb — `sudo apt-get install -y xvfb` — and the pack auto-wraps the
+Playwright MCP in `xvfb-run`), and **headless on macOS** (a headed macOS window
+activates and steals keyboard focus on every navigation, locking you out of what
+you're typing). On **Windows** and desktop Linux it renders headed-visible.
+Headless is **not** a downgrade — it's the same engine with identical layout,
+overlay and contrast, and the screenshots are the proof regardless.
 </Aside>
 
 ## Full-run coverage
