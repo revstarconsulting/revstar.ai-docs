@@ -46,7 +46,7 @@ that fits, most often `dev`.
 | Skill | When it fires |
 | --- | --- |
 | `ado-telemetry` | Read-only Azure DevOps pulls — sprint status, work items, roadmap. |
-| `ado-write` | Creating or updating Azure DevOps work items to exact conventions. |
+| `ado-write` | Creating or updating Azure DevOps work items to exact conventions. Also drives the enforced item lifecycle — `Active` + assigned at start; at done, moves the item to the ready-for-QA/UAT state, assigns it, and comments — and records a receipt (checked by `ado-receipt-gate`). |
 | `kb` | Regenerating the project's living knowledge base — architecture, ERD, API, infra docs. |
 | `project-map` | Auditing an unfamiliar or freshly-linked repo into a concise `.kiro/architecture.md` navigation map, so sessions orient fast. Manual, per-project. |
 | `skill-creator` | Authoring a new skill — interviews you and drafts a well-formed `SKILL.md`. |

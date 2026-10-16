@@ -31,10 +31,37 @@ team:
 
 <Aside type="tip">
 Reporting progress to your daily task is **standard practice**, not something
-you opt into — as work happens, post the update. Only destructive or unusual
-edits (changing state, reassigning, editing someone else's item, deletes) are
-gated behind explicit confirmation.
+you opt into — as work happens, post the update. The standard
+[work-item lifecycle](#the-enforced-work-item-lifecycle) on the item your branch
+is bound to is **pre-approved** — no per-change confirmation. Only genuinely
+non-standard edits (someone else's item, deletes, odd state jumps, items not
+bound to the branch) are gated behind explicit confirmation.
 </Aside>
+
+## The enforced work-item lifecycle
+
+For ADO-tracked work, `ado-write` drives the item the branch is bound to
+through a fixed lifecycle:
+
+1. **At start** — the item moves to `Active` and is assigned to the developer.
+2. **At done, before opening the PR** — the item moves to the project's
+   ready-for-QA/UAT state (the client's **Done state**), is assigned to the
+   **Done assignee**, and gets a comment describing what was done. Hours stay
+   `0`, per the writing conventions above.
+
+Each update is recorded as a **receipt**. The **`ado-receipt-gate`** turns the
+lifecycle from a convention into a rule: when armed, it blocks opening a PR
+(`gh pr create`, `glab mr create`, `az repos pr create`) from a
+`feat/<id>-*` branch until the item's status / assignee / comment update has
+been recorded.
+
+```sh
+touch ~/.kiro/gates/ado-receipt-gate.enabled
+```
+
+It is **disarmed by default** and **fails open** — any uncertainty or error
+allows the PR — and it only fires for ADO-bound `feat/<id>-*` branches. Work on
+any other branch is untouched. See [Gates](/capabilities/gates/).
 
 ## Set up ADO for a client (org, project, PAT)
 
@@ -61,6 +88,21 @@ on the client, once:
   kiroctl client set-ado --slug <client> --ado-pm "Jordan Lee"
   ```
 
+- **Done state** — the board column/state that means *ready for QA/UAT*; the
+  lifecycle moves the item here when work is done. If it's unset or non-standard,
+  the agent asks once and saves the answer. Set it in the **Azure DevOps** card, or:
+
+  ```sh
+  kiroctl client set-ado --slug <client> --done-state "Ready for QA"
+  ```
+
+- **Done assignee** — who the item is assigned to at done. Defaults to the project
+  PM when blank; set a per-project override in the same card, or:
+
+  ```sh
+  kiroctl client set-ado --slug <client> --done-assignee "Jordan Lee"
+  ```
+
 - **PAT** (scoped per client, never global) — from the same card, or piped in
   from the CLI (never passed as an argument):
 
@@ -85,6 +127,8 @@ work with zero manual setup:
 - `ADO_PAT` / `ADO_ORG_URL` / `ADO_PROJECT` (+ `ADO_PM` when a PM is set) — for the
   **`kiroctl ado`** CLI, and `ADO_PM` is the PM that `grill-me` assigns information
   requests to.
+- `ADO_DONE_STATE` / `ADO_DONE_ASSIGNEE` — the client's Done state and Done
+  assignee, used by the [work-item lifecycle](#the-enforced-work-item-lifecycle).
 
 `mcp.json` references org/project from the environment
 (`${AZURE_DEVOPS_ORG_URL}` etc.), so a session automatically targets the *bound
