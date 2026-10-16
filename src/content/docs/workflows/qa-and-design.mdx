@@ -145,11 +145,12 @@ pack ships the scripts; you only add the project's `qa-contract.json`, the gate
 flags you want armed, and the CI hook.
 
 QA renders every UI page in a **real browser** (never a fetch) and captures
-**screenshots** as the evidence. The browser runs **headless on every platform**
-so it never steals your window focus — a headed Chrome activates and raises on
-every navigation on macOS, Windows and desktop Linux alike, locking you out of
-whatever you're typing (ADO 145123). Headless needs no display, so there's no
-Xvfb wrapping or `DISPLAY` dependency on any OS.
+**screenshots** as the evidence. The browser runs **invisibly wherever a visible
+one would disrupt you**: under a virtual framebuffer on **display-less Linux**
+(install Xvfb — `sudo apt-get install -y xvfb` — and the pack auto-wraps the
+Playwright MCP in `xvfb-run`), and **headless on macOS** (a headed macOS window
+activates and steals keyboard focus on every navigation, locking you out of what
+you're typing). On **Windows** and desktop Linux it renders headed-visible.
 Headless is **not** a downgrade — it's the same engine with identical layout,
 overlay and contrast, and the screenshots are the proof regardless.
 </Aside>
