@@ -176,11 +176,22 @@ files instead of re-scanning the tree:
 
 > "map this project" · "audit the codebase" · "where is everything"
 
-It writes a concise `.kiro/architecture.md` — stack, entry points, a directory
+It writes a concise `.kiro/context/architecture.md` — stack, entry points, a directory
 map, data models, routes, key modules, and the build/test/run commands — and
 keeps a one-line pointer in project steering so it's read on demand. Re-run it
 after a big structural change. For full shareable docs (ERD / API / rendered
 diagrams), use the `kb` skill instead.
+
+### Shared project context
+
+That map is one third of the **shared project context**: a committed
+`.kiro/context/` bundle of `architecture.md`, `gotchas.md` (non-obvious
+pitfalls) and `decisions.md` (notable choices and why), so a different developer
+can pick the project up from a clone. `kiroctl project new --scaffold` drops a
+committed `.kiro/steering/project-context.md` pointer, so the bundle auto-loads
+for the next developer and is auto-created when missing. Refresh it any time by
+saying "save context" (the `project-context` skill); a mission refreshes it
+automatically. It is secret-scrubbed and committed, so it travels via GitHub.
 
 ## Next step
 

@@ -66,6 +66,9 @@ A mission cannot clear while any ledger line reads GAP. This is what stops a
 mission from being marked done on narrative confidence alone — every claim
 needs a cited artifact.
 
+Before a mission clears, it refreshes and commits the shared project context
+(`.kiro/context/`) so the next developer inherits the current state.
+
 ## Reversibility: when to stop and ask
 
 Most mid-mission forks are **two-way doors** — cheap to undo or redo. Decide
