@@ -53,6 +53,10 @@ autonomous kickoff therefore stops rather than running misconfigured. The ack is
 **separate from `--preapproved`** — pre-approving reversible decisions never
 silently waives a missing QA environment or an ungrilled plan.
 
+One check is **advisory only**: if a feature mission has a plan but no estimate (or a
+stale one) on record, preflight **warns and proceeds**. See
+[Estimation output contract](/workflows/pipeline/#estimation-output-contract).
+
 ## The acceptance ledger
 
 Every mission carries an **acceptance ledger** — one line per requirement,
@@ -68,6 +72,10 @@ needs a cited artifact.
 
 Before a mission clears, it refreshes and commits the shared project context
 (`.kiro/context/`) so the next developer inherits the current state.
+
+The wrap also captures **estimate vs actual** — autonomous time, units, and human
+supervision/verification minutes — and appends one row to
+`memory/estimation-calibration.md` for [self-calibration](/workflows/pipeline/#self-calibration).
 
 ## Reversibility: when to stop and ask
 

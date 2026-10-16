@@ -33,7 +33,8 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
 3. **`estimation`** *(optional)* — get the autonomous build wall-clock **plus**
    the human-oversight hours, or a quick scope/risk read. Skip it for small,
    clearly-scoped work; reach for it before committing to anything sizeable.
-   AI/LLM workloads are flagged and estimated separately.
+   AI/LLM workloads are flagged and estimated separately. A plan estimate ends with a
+   required `kiro-estimate` block — see [Estimation output contract](#estimation-output-contract).
 
 4. **Run the mission** — set the plan as the mission and drive it with `/goal`.
    It builds phase by phase and **automatically runs the `qa` skill** on every
@@ -50,6 +51,71 @@ Without somewhere to render and exercise the app, QA can't return its two-gate
 verdict (**works** *and* **matches intent**) — it silently degrades. Declare a
 reachable target in the project's `qa-contract.json` when you link the project;
 see [Setting up QA in a project](/workflows/qa-and-design/#setting-up-qa-in-a-project).
+</Aside>
+
+## Estimation output contract
+
+Every **plan** estimate ends with a required, machine-checkable `kiro-estimate`
+block (a fenced `kiro-estimate` code block) with all of these fields filled:
+
+| Field | What it holds |
+| --- | --- |
+| `driver` | The count or scale that sets cost — e.g. `40 entities`, `3 rebuilds`. |
+| `autonomous` | The range to PR-ready / build-green. |
+| `supervision` | Human oversight, modelled per verifiable unit. |
+| `verification` | Human verification / MATCHES-INTENT time. |
+| `trust-level` | `watch-everything`, `spot-check` or `batch-on-gates`. |
+| `expected` | The headline expected-case number. |
+| `worst-case` | Kept separate from `expected`, never blended into it. |
+| `one-way-doors` | The irreversible decisions the mission will stop for. |
+
+The point is to make the **assumptions** behind the numbers visible, reconcilable
+and gradable against the actual — not just to print a figure.
+
+### Self-gated, advisory at preflight
+
+After emitting a complete block, the skill runs `estimate-receipt.js write <plan>`.
+It **refuses if any required field is empty**, so an incomplete estimate can't be
+recorded. The receipt is keyed to the plan's hash (`sha256`), so editing the plan
+invalidates it and the plan must be re-estimated — exactly like the
+[grill-me receipt](/workflows/missions/#the-preflight-gate).
+
+The mission preflight **warns, but never blocks,** when a feature mission has a
+plan with no estimate on record, or a stale one. It is a separate advisory tier,
+distinct from the hard blocks for a missing `grill-me`, QA environment or bug
+report.
+
+### Supervision sits beside the autonomous number
+
+Human supervision is modelled **per verifiable unit** (phases or PRs) and presented
+*beside* the autonomous number — never as a percentage of autonomous wall-clock. A
+slow build inflates the clock but not what a human actually reviews. Verification
+and MATCHES-INTENT is a heavier line, roughly 0.5–1 h per mission. Oversight
+therefore scales with the units reviewed, not with lines of code or elapsed time.
+
+### Reconciled across sessions
+
+Re-estimating something already estimated loads the prior `kiro-estimate` block and
+surfaces a **delta against a named assumption** rather than silently emitting a
+different number. The block persists in the plan file; for ADO-tracked work it is
+also posted as a gated, labelled comment on the story, so a different session can
+reconcile against it. The bar is *reconciled, not identical* — LLM estimates aren't
+deterministic.
+
+### Self-calibration
+
+Before a mission clears, its wrap captures **estimate vs actual**: the actual
+autonomous time (from a per-turn-capped `activeMs` accumulator in the turn recorder,
+so idle time doesn't inflate it), the units, and the human supervision and
+verification minutes. It appends one row to `memory/estimation-calibration.md`.
+
+That note holds the live anchors the skill reads at runtime, falling back to baked-in
+bootstrap values. Saying **"recalibrate estimates"** — on demand, or when nudged
+after about ten runs — turns the accumulated rows into updated anchors.
+
+<Aside type="note">
+The scope/risk read ("how big is this?", no plan file) is exempt: no
+`kiro-estimate` block and no receipt.
 </Aside>
 
 ## The bug-fixing fast path
