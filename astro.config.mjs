@@ -35,6 +35,7 @@ export default defineConfig({
             { label: 'Agents', slug: 'capabilities/agents' },
             { label: 'Skills', slug: 'capabilities/skills' },
             { label: 'Gates', slug: 'capabilities/gates' },
+            { label: 'Telemetry', slug: 'capabilities/telemetry' },
             { label: 'Steering', slug: 'capabilities/steering' },
           ],
         },
