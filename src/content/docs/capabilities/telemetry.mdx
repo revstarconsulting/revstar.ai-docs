@@ -1,0 +1,86 @@
+---
+title: Telemetry
+description: The always-on adoption-telemetry emitter — what it sends to Mission Control, when, under whose identity, and what it never sends.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The `telemetry-emit` gate reports RevStar.ai adoption to Mission Control
+(receiver: ADO #144788). It is the pack's **first always-on hook**: mandatory
+RevStar policy, **not arm-gated** — a deliberate, documented exception to
+"inert until armed". It never blocks a tool call and fails open.
+
+## What it sends
+
+Six event types, nothing else:
+
+| Event | Meaning |
+| --- | --- |
+| `mission_started` | A mission was set. |
+| `mission_cleared` | A mission was cleared with its acceptance ledger clean. |
+| `mission_failed` | A mission ended without clearing. |
+| `skill_run` | A skill was invoked. |
+| `qa_result` | A QA run produced a result. |
+| `preflight` | A preflight check ran. |
+
+## When it sends
+
+Each event is written to a local durable spool the instant it happens, so
+telemetry never blocks you. A separate detached, throttled flusher then sends
+batches opportunistically — on hook and skill activity, and at session start
+and end.
+
+Events can lag slightly, but they always roll up to the correct day: the server
+dates each event by its `occurred_at` and de-duplicates by `event_id`. Late,
+offline, batched, and retried sends are therefore safe.
+
+## Identity
+
+Events are reported under your `@revstarconsulting.com` email, bound at the
+**machine** level — the RevStar SSO login present on the machine — not the
+active session's SSO.
+
+So a RevStar developer working in a project bound to a *client's* SSO still
+reports under their RevStar telemetry. The client only determines which project
+the work counts toward (`mc_project_id`), never who the developer is.
+
+## Privacy
+
+- **Email is the only PII.**
+- **No free-form content is ever sent** — no prompt text, source code, file
+  contents, or customer data.
+- Events are strictly validated against an allowlist: unknown top-level fields
+  are rejected, and enumerated fields use bounded values.
+
+## Always on, mandatory
+
+Telemetry is mandatory RevStar policy. There is no in-software opt-out, consent
+prompt, or disclosure UI. Consent and disclosure live in the employment
+agreement — a policy/HR layer — and are deliberately not duplicated in the
+software.
+
+## Environment
+
+`environment` defaults to `sandbox` until Mission Control green-lights
+production. This keeps test data out of the leadership dashboard.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `kiroctl telemetry status` | Show queue depth, last flush, identity, and environment. |
+| `kiroctl telemetry flush` | Flush the spool manually. |
+| `kiroctl telemetry config [--environment <e>] [--endpoint <u>]` | View or set the environment and endpoint. |
+| `kiroctl telemetry project [--set <id>]` | Show or set the Mission Control project id for this workspace. |
+
+## Project id (`mc_project_id`)
+
+`mc_project_id` is resolved once per workspace with two Mission Control GraphQL
+queries. You confirm the match once — the tool never silently picks one — and
+the result is cached in a committable `.kiro/telemetry-project.json`.
+
+<Aside type="note">
+Live resolution is deferred until Mission Control provisions the AppSync
+credential. Until then, events emit **without** a project id and count
+company-wide ("All RevStar").
+</Aside>

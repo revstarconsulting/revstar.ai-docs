@@ -116,7 +116,8 @@ for you (surface + interaction inventories → `qa-registry-merge.js` → the pr
 manifest). You can also run them by hand from the project root while iterating on
 the contract.
 
-**3. Arm the gates.** Gates are inert until an enable flag exists — globally at
+**3. Arm the gates.** Gates are inert until an enable flag exists (the one exception is the always-on
+`telemetry-emit` hook) — globally at
 `$KIRO_HOME/gates/<gate>.enabled` or per-project at `<project>/.kiro/gates/`. Arm
 one at a time:
 

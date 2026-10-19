@@ -14,7 +14,8 @@ of them. They layer on top of each other rather than working in isolation:
 - **[Agents](/capabilities/agents/)** — the personas that use steering and
   skills to do the work. Each has a fixed model and a fixed set of tools.
 - **[Gates](/capabilities/gates/)** — enforcement hooks wired into the agents.
-  Every gate is **inert until armed** with a `.enabled` flag file, and every
+  Every gate is **inert until armed** with a `.enabled` flag file, except the
+  always-on `telemetry-emit` hook (mandatory adoption telemetry). Every
   gate **fails open** — a crashing or unarmed gate never blocks you silently.
 
 ## Two systems built on these primitives
