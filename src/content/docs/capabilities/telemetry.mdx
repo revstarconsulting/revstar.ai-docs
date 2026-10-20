@@ -3,8 +3,6 @@ title: Telemetry
 description: The always-on adoption-telemetry emitter — what it sends to Mission Control, when, under whose identity, and what it never sends.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
 The `telemetry-emit` gate reports RevStar.ai adoption to Mission Control
 (receiver: ADO #144788). It is the pack's **first always-on hook**: mandatory
 RevStar policy, **not arm-gated** — a deliberate, documented exception to
@@ -75,12 +73,14 @@ production. This keeps test data out of the leadership dashboard.
 
 ## Project id (`mc_project_id`)
 
-`mc_project_id` is resolved once per workspace with two Mission Control GraphQL
-queries. You confirm the match once — the tool never silently picks one — and
-the result is cached in a committable `.kiro/telemetry-project.json`.
+Project attribution is resolved **server-side by Mission Control**. Every event
+already carries the developer's RevStar email and the repo slug (`org/name`,
+auto-derived from the git origin), and Mission Control maps
+*(developer, repo) → project* at ingest from its own project-lookup data. The
+emitter does **not** call back into Mission Control to resolve a project and
+holds no lookup credential — it just emits.
 
-<Aside type="note">
-Live resolution is deferred until Mission Control provisions the AppSync
-credential. Until then, events emit **without** a project id and count
-company-wide ("All RevStar").
-</Aside>
+`kiroctl telemetry project --set <id>` is an optional override: it pins a
+specific `mc_project_id` in a committable `.kiro/telemetry-project.json` for the
+rare case where one repo maps to several projects. When no pin is set (the
+common case) the event omits `mc_project_id` and Mission Control resolves it.
