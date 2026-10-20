@@ -57,6 +57,14 @@ prompt, or disclosure UI. Consent and disclosure live in the employment
 agreement — a policy/HR layer — and are deliberately not duplicated in the
 software.
 
+## Kill switch
+
+The off-switch is **server-side**, held by Mission Control — not a local toggle.
+If MC disables RevStar.ai telemetry, the ingest returns a terminal
+`403 {"disabled": true}`; the emitter then **drops its queued events** (it does
+not spool or replay them) and backs off before trying again. Nothing is blocked
+locally either way — the emitter always fails open.
+
 ## Environment
 
 `environment` defaults to `sandbox` until Mission Control green-lights
