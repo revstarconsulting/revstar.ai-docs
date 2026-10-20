@@ -67,16 +67,19 @@ locally either way — the emitter always fails open.
 
 ## Environment
 
-`environment` defaults to `sandbox` until Mission Control green-lights
-production. This keeps test data out of the leadership dashboard.
+Mission Control fans every event out to all environments and resolves each on
+its side, so `environment` is **advisory** — the emitter does not set or manage
+it, and there is no sandbox/prod switch to flip. (If a value is ever supplied it
+must be `"sandbox"` or `"prod"` so a typo is caught, but normally the field is
+simply omitted.)
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `kiroctl telemetry status` | Show queue depth, last flush, identity, and environment. |
+| `kiroctl telemetry status` | Show queue depth, last flush, and identity. |
 | `kiroctl telemetry flush` | Flush the spool manually. |
-| `kiroctl telemetry config [--environment <e>] [--endpoint <u>]` | View or set the environment and endpoint. |
+| `kiroctl telemetry config [--endpoint <u>]` | View or set the ingest endpoint. |
 | `kiroctl telemetry project [--set <id>]` | Show or set the Mission Control project id for this workspace. |
 
 ## Project id (`mc_project_id`)
