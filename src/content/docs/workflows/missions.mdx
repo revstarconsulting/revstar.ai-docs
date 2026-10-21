@@ -45,6 +45,11 @@ was skipped, not a tool bug. `mission-state.js --init` verifies:
 - **grill-me receipt** (feature missions) — a receipt keyed to the plan file's
   hash, so an ungrilled or since-edited plan is caught.
 - **bug-report artifact** (bug-fix missions) — a real bug report to work from.
+- **access preflight** (both kinds) — the active GitHub account can reach the repo
+  named by the git remote, plus any token / staging / DB / deploy probes the project
+  declares in the `qa-contract.json` `access` block. Catches the "wrong `gh`
+  account", "expired/forbidden token", and "staging is actually production" classes
+  at minute one instead of hour three.
 
 A gap is a **hard but overridable** block: it names exactly what's missing, warns
 that skipping it raises the error / regression / defect rate, and **refuses to
@@ -52,6 +57,17 @@ start** unless you pass `--ack-skipped "qa,grill-me"` (which records the skip). 
 autonomous kickoff therefore stops rather than running misconfigured. The ack is
 **separate from `--preapproved`** — pre-approving reversible decisions never
 silently waives a missing QA environment or an ungrilled plan.
+
+**Access findings are tiered by reversibility.** A *missing* credential or login
+(can't-do-it) is waveable like the others — `--ack-skipped access` proceeds and the
+mission ends PARTIAL, doing only the parts it can. A *wrong* finding — the wrong
+`gh` identity, or a "staging" target that is actually production — is **not
+waveable**: `--ack-skipped`/`--force` cannot clear it, because a write would
+succeed but land in the wrong place. On an autonomous run the agent never
+self-waves an access gap; it surfaces for your proceed-partial / hold decision.
+The verdict is one of `ACCESS-OK | ACCESS-PARTIAL | ACCESS-BLOCKED |
+ACCESS-UNVALIDATED`; declared probes live in the `access` block of
+`qa-contract.json`.
 
 One check is **advisory only**: if a feature mission has a plan but no estimate (or a
 stale one) on record, preflight **warns and proceeds**. See
