@@ -33,6 +33,14 @@ re-prompting the session until every success criterion is met, rather than
 stopping after one pass. Point it at a plan and it will keep working — building,
 auditing, running QA, fixing gaps — until the goal is genuinely done.
 
+For fully hands-off runs, `mission-acp-driver.js` drives one persistent session
+and **self-heals**: if a model goes unavailable it retries then relaunches on the
+next model in the chain, and a **hang watchdog** aborts and relaunches a turn that
+streams nothing for `--hang-timeout` minutes (default 10) — the safeguard for a
+wedged turn (e.g. a large parallel-write batch that never returns, ADO 145914).
+Relaunches reset the session context but the mission and task list persist, and a
+run that keeps hanging is capped so it terminates instead of looping forever.
+
 ## The preflight gate
 
 Setting a mission runs a **preflight** that checks the approved process is in
