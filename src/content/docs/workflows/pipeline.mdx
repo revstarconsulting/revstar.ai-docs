@@ -107,11 +107,14 @@ deterministic.
 Before a mission clears, its wrap captures **estimate vs actual**: the actual
 autonomous time (from a per-turn-capped `activeMs` accumulator in the turn recorder,
 so idle time doesn't inflate it), the units, and the human supervision and
-verification minutes. It appends one row to `memory/estimation-calibration.md`.
+verification minutes. It appends one row to the gitignored
+`estimation-calibration.local.md` — never the committed seed — so recording a run
+never dirties the pack checkout.
 
-That note holds the live anchors the skill reads at runtime, falling back to baked-in
+The committed seed `estimation-calibration.md` holds the curated live anchors the
+skill reads at runtime (alongside any local rows), falling back to baked-in
 bootstrap values. Saying **"recalibrate estimates"** — on demand, or when nudged
-after about ten runs — turns the accumulated rows into updated anchors.
+after about ten runs — promotes the accumulated local rows into updated anchors.
 
 <Aside type="note">
 The scope/risk read ("how big is this?", no plan file) is exempt: no

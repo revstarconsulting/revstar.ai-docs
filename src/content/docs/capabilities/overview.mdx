@@ -23,9 +23,15 @@ of them. They layer on top of each other rather than working in isolation:
 - **Missions** — a standing macro-goal for multi-phase work, kept alive across
   context compaction by the `mission-inject` and `mission-turn-recorder` gates.
   See the `mission` skill.
-- **Memory** — a knowledge base of durable environment facts and standing
-  preferences, indexed and retrieved on demand rather than loaded every turn
-  like steering is.
+- **Memory** — durable facts and standing preferences, split by scope. **Pack
+  memory** (`kiro/memory/`) is a maintainer-curated knowledge base of
+  *environment-independent* facts, indexed and retrieved on demand rather than
+  loaded every turn like steering is. **Project memory** lives in each repo's own
+  `.kiro/memory/` and holds that project's learnings — a deploy quirk, an API cap,
+  a login gotcha — written there (never into the shared pack) by the `mission`,
+  `handoff` and `estimation` skills via `kiro/bin/memory-note.js`. A client's
+  notes travel with its repo and never leak into another project's knowledge base
+  or dirty a developer's pack checkout.
 
 ## How a task flows
 
