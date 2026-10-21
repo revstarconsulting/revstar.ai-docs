@@ -15,6 +15,58 @@ and your Azure DevOps PAT.
   href="https://github.com/revstarconsulting/revstar.ai/blob/v1/INSTALL.md"
 />
 
+## 0. One-shot bootstrap (new / near-bare machine)
+
+If the machine doesn't yet have Node, Kiro CLI (or, on Windows, WSL), use the
+**bootstrap** scripts — they install the prerequisites (via `fnm` for a pinned
+Node LTS, the official `kiro-cli` installer) and then run the pack installer for
+you. Everything is **idempotent** (re-running only fills what's missing) and
+**detect-and-report** (a blocked prerequisite is reported with the fix, never a
+half-install).
+
+<Tabs syncKey="os">
+  <TabItem label="macOS" icon="apple">
+    ```sh
+    ./scripts/bootstrap-macos.sh              # add --arm-safe to arm the inject-only gates
+    ```
+    No Homebrew required — `fnm` installs Node per-user.
+  </TabItem>
+  <TabItem label="Linux / WSL" icon="linux">
+    ```sh
+    ./scripts/bootstrap-wsl.sh                # add --enable-passwordless-sudo to opt in (below)
+    ```
+  </TabItem>
+  <TabItem label="Windows" icon="seti:windows">
+    Run in an **elevated** PowerShell (it self-elevates if needed):
+    ```powershell
+    .\scripts\bootstrap-windows.ps1
+    ```
+    Stage 1 installs WSL (+ a distro). If Windows needs a reboot it tells you;
+    otherwise launch the distro once (to create your Linux user) and run the
+    printed Stage-2 one-liner (`bootstrap-wsl.sh`) inside it.
+  </TabItem>
+</Tabs>
+
+<Aside type="caution" title="Passwordless sudo — opt-in, security tradeoff">
+A fully autonomous mission runs commands non-interactively, so a `sudo` that
+prompts for a password will **hang** (there's no TTY to answer it). You can
+grant passwordless sudo so missions don't stall:
+
+```sh
+./install.sh --enable-passwordless-sudo        # or: ./scripts/enable-passwordless-sudo.sh
+```
+
+This writes a `visudo`-validated `/etc/sudoers.d/90-revstar-kiro` after you
+confirm. **`NOPASSWD` means this user can run `sudo` with no password** — fine on
+a personal dev box, but it may violate policy on a shared/corp machine, so it is
+**opt-in and never applied by the default install**. Scope it with
+`--commands "apt-get,systemctl"` instead of all commands, and undo any time with
+`sudo rm /etc/sudoers.d/90-revstar-kiro`. `kiroctl doctor` tells you whether sudo
+will prompt (and so whether missions would hang).
+</Aside>
+
+Already have Node + Kiro CLI (+ WSL on Windows)? Skip to the manual steps below.
+
 ## 1. Prerequisites
 
 - **Node.js 18+**
@@ -106,7 +158,9 @@ kiroctl doctor --governance
 
 Everything day-to-day happens in the **RevStar.ai project GUI** — one identical local
 web app on macOS, Windows and Linux. Launch it from the **“RevStar.ai - New Project”**
-desktop icon the installer created, or run:
+desktop icon the installer created — it now carries the **RevStar brand icon** on all
+three platforms (a `.desktop` entry on Linux, an app bundle on macOS, a `.lnk` on
+Windows) — or run:
 
 ```sh
 kiroctl gui
