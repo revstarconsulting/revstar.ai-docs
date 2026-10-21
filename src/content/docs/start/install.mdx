@@ -24,28 +24,57 @@ you. Everything is **idempotent** (re-running only fills what's missing) and
 **detect-and-report** (a blocked prerequisite is reported with the fix, never a
 half-install).
 
+<Aside type="note" title="Download needs GitHub access (the repo is private)">
+`revstar.ai` is a **private** repo, so there is no anonymous `curl | bash` — the
+download is authenticated. You need a **GitHub account added to the RevStar org**
+and **git** (ships with macOS Command Line Tools and inside WSL). Sign in once
+with `gh auth login` or your SSH key, then clone and run the bootstrap below.
+</Aside>
+
 <Tabs syncKey="os">
   <TabItem label="macOS" icon="apple">
     ```sh
+    # git comes from the Command Line Tools (xcode-select --install) if missing
+    git clone https://github.com/revstarconsulting/revstar.ai.git
+    cd revstar.ai
     ./scripts/bootstrap-macos.sh              # add --arm-safe to arm the inject-only gates
     ```
     No Homebrew required — `fnm` installs Node per-user.
   </TabItem>
   <TabItem label="Linux / WSL" icon="linux">
     ```sh
+    sudo apt-get update && sudo apt-get install -y git   # if git is missing
+    git clone https://github.com/revstarconsulting/revstar.ai.git
+    cd revstar.ai
     ./scripts/bootstrap-wsl.sh                # add --enable-passwordless-sudo to opt in (below)
     ```
   </TabItem>
   <TabItem label="Windows" icon="seti:windows">
-    Run in an **elevated** PowerShell (it self-elevates if needed):
+    A bare Windows box has no git yet, so grab just the Stage-1 script from the
+    GitHub web UI (signed in): open
+    [`scripts/bootstrap-windows.ps1`](https://github.com/revstarconsulting/revstar.ai/blob/v1/scripts/bootstrap-windows.ps1)
+    and click **Download raw file**, then run it in an **elevated** PowerShell:
     ```powershell
-    .\scripts\bootstrap-windows.ps1
+    .\bootstrap-windows.ps1
     ```
     Stage 1 installs WSL (+ a distro). If Windows needs a reboot it tells you;
-    otherwise launch the distro once (to create your Linux user) and run the
-    printed Stage-2 one-liner (`bootstrap-wsl.sh`) inside it.
+    otherwise launch the distro once (to create your Linux user). Then run the
+    **Stage-2** command it prints inside WSL — a clone + `bootstrap-wsl.sh`:
+    ```sh
+    git clone https://github.com/revstarconsulting/revstar.ai.git ~/revstar.ai \
+      && cd ~/revstar.ai && ./scripts/bootstrap-wsl.sh
+    ```
   </TabItem>
 </Tabs>
+
+<Aside type="tip" title="Already signed in with gh? Grab a single script without a full clone">
+With `gh` installed and authenticated you can pull just one bootstrap script:
+
+```sh
+gh api repos/revstarconsulting/revstar.ai/contents/scripts/bootstrap-macos.sh \
+  -H "Accept: application/vnd.github.raw" > bootstrap-macos.sh && bash bootstrap-macos.sh
+```
+</Aside>
 
 <Aside type="caution" title="Passwordless sudo — opt-in, security tradeoff">
 A fully autonomous mission runs commands non-interactively, so a `sudo` that
