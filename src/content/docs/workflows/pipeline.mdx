@@ -26,9 +26,17 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
 2. **`grill-me`** — interrogate the plan adversarially until every gap and open
    decision is resolved. It works on the **plan file**: if the plan lives only in chat
    it writes `plan.md` first, then **folds each resolved decision into the file in place**
-   and records a **receipt keyed to the plan's hash**. A plan that survives grill-me is
-   one the mission can build without guessing — and the mission preflight checks that
-   receipt, so an ungrilled (or since-edited) plan is caught.
+   and records a **receipt keyed to the plan's hash**. It first forces the plan into
+   **phases → features** (whatever shape it arrived in) and then grills in **two
+   dimensions, both deep** — a holistic pass over the cohesive whole and a per-feature
+   pass over **every** feature, so a large plan gets the same rigor per decision as a
+   single feature instead of going shallow. It keeps an **advisory `## Grill Coverage`
+   checklist** (grouped by phase: grilled / deferred-with-reason / still-open) in the
+   plan and shows it in the closing summary, and asks every question in plain English.
+   The coverage checklist is a visible record, **not** a gate — it never blocks a
+   mission (missions ingest pre-grilled plans and ADO items that carry no checklist).
+   A plan that survives grill-me is one the mission can build without guessing — and the
+   mission preflight checks the receipt, so an ungrilled (or since-edited) plan is caught.
 
 3. **`estimation`** *(optional)* — get the autonomous build wall-clock **plus**
    the human-oversight hours, or a quick scope/risk read. Skip it for small,
