@@ -38,6 +38,17 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
    A plan that survives grill-me is one the mission can build without guessing — and the
    mission preflight checks the receipt, so an ungrilled (or since-edited) plan is caught.
 
+   grill-me also **pulls RevStar's SOP standards from Mission Control** during the holistic
+   pass: it works out which standards the plan implicates (data/PII handling, auth, payment
+   tokens, secrets, infra…), looks each up, and **folds the applicable ones into the plan** plus
+   a `## Standards` list. Those standards then ride the rest of the pipeline — the **mission
+   audit** re-fetches each one *live* (the live standard is the authority) and checks the build
+   against it, and **QA** derives extra test cases from them (executing what it can, flagging
+   load/pen-test checks for a specialist). It's advisory and **degrades to a quiet no-op** when
+   the standards service isn't reachable, so it never blocks a plan, mission, or QA run. Point it
+   at the service with `KIRO_SOP_PROXY_URL` (or `~/.kiro/sop-standards.json`); until that's set,
+   the standards steps simply do nothing.
+
 3. **`estimation`** *(optional)* — get the autonomous build wall-clock **plus**
    the human-oversight hours, or a quick scope/risk read. Skip it for small,
    clearly-scoped work; reach for it before committing to anything sizeable.
