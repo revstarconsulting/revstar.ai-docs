@@ -1,6 +1,6 @@
 ---
 title: Command reference
-description: The complete kiroctl command surface — 18 commands, one line each.
+description: The complete kiroctl command surface — 19 commands, one line each.
 ---
 
 `kiroctl` is the only CLI surface. The commands below are the complete set —
@@ -26,6 +26,7 @@ there is no `link`, `unlink`, or `install @latest`.
 | `kiroctl project set-env --dir [--base-url --env --branch --backend-query]` | Capture the project's staging/dev QA target + access; scaffolds `qa-contract.json`. |
 | `kiroctl mission-report [--dir] [--transcript]` | Write a local, secret-scrubbed diagnostics bundle for auditing a mission run (no upload). |
 | `kiroctl telemetry status \| flush \| config \| project` | Adoption-telemetry emitter: queue status, manual flush, endpoint config, Mission Control project id. |
+| `kiroctl sop token \| status \| signout` | Mission Control SOP-standards sign-in. Sign **in** via the GUI "Sign in with Mission Control" button; `token` non-interactively re-mints the id-token for tooling. |
 
 ## What doesn't exist
 
