@@ -45,9 +45,16 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
    audit** re-fetches each one *live* (the live standard is the authority) and checks the build
    against it, and **QA** derives extra test cases from them (executing what it can, flagging
    load/pen-test checks for a specialist). It's advisory and **degrades to a quiet no-op** when
-   the standards service isn't reachable, so it never blocks a plan, mission, or QA run. Point it
-   at the service with `KIRO_SOP_PROXY_URL` (or `~/.kiro/sop-standards.json`); until that's set,
-   the standards steps simply do nothing.
+   the standards service isn't reachable, so it never blocks a plan, mission, or QA run. The
+   endpoint is built in; `KIRO_SOP_PROXY_URL` (or `~/.kiro/sop-standards.json`) overrides it.
+
+   **Signing in.** The standards live behind Mission Control, so Kiro needs a sign-in. Open the
+   project GUI (`kiroctl gui`) and click **"Sign in with Mission Control"** — a normal browser
+   SSO login (Google Workspace). You sign in **once** and stay signed in for about a year: Kiro
+   keeps the short-lived token fresh in the background, so even long unattended missions don't
+   stall (it re-mints via `kiroctl sop token` when needed). Until a developer signs in, every
+   standards step simply **no-ops** — it never blocks. Sign out from the same card or with
+   `kiroctl sop signout`.
 
 3. **`estimation`** *(optional)* — get the autonomous build wall-clock **plus**
    the human-oversight hours, or a quick scope/risk read. Skip it for small,
