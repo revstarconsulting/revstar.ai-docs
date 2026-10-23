@@ -53,8 +53,9 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
    SSO login (Google Workspace). You sign in **once** and stay signed in for about a year: Kiro
    keeps the short-lived token fresh in the background, so even long unattended missions don't
    stall (it re-mints via `kiroctl sop token` when needed). Until a developer signs in, every
-   standards step simply **no-ops** — it never blocks. Sign out from the same card or with
-   `kiroctl sop signout`.
+   standards step simply **no-ops** — it never blocks; the GUI shows a **critical banner** while
+   signed out, and the pipeline skills prompt you to sign in if a run actually needs standards.
+   Sign out from the same card or with `kiroctl sop signout`.
 
 3. **`estimation`** *(optional)* — get the autonomous build wall-clock **plus**
    the human-oversight hours, or a quick scope/risk read. Skip it for small,
