@@ -191,8 +191,10 @@ check, clean it up afterward.
 Reach for `design` when building or changing any front-end surface —
 components, layouts, pages, forms, flows, styles, or theme. It:
 
-- **Reuses the project's own design system** rather than inventing a second
-  one.
+- **Builds to the project's design authority** — the plan's pinned `## Design Authority`
+  (a customer mockup in *fidelity* mode, or the committed **brand guide** in *consistency*
+  mode) — rather than inventing a second design language. The brand guide
+  (`.kiro/context/brand-guide.md`) is the captured, reviewed source-of-truth.
 - Enforces the **full component state set** for every component:
   - default
   - hover
@@ -205,6 +207,25 @@ components, layouts, pages, forms, flows, styles, or theme. It:
 Loading, empty, and error are the three that hide dead-ends — a component that
 only has its default state looks finished and isn't. `design` builds it right;
 QA proves the states exist and lead somewhere.
+
+## Design authority & the brand guide
+
+A plan's UI can drift two ways — a build that **redesigns** a customer's provided look, or new UI
+that ships **off-brand** from the rest of the app. Both used to pass QA. The design-fidelity thread
+closes that, end to end:
+
+- **`grill-me` pins a `## Design Authority`** for any UI plan — *fidelity* (reproduce the customer
+  mockup's design language) or *consistency* (match the project brand guide). It pins the design
+  **language** (tokens, component styling + states, layout, icon/motion); the **content** still
+  evolves freely through grilling.
+- **The `brand-guide` skill** captures the app's design language into a committed, reviewed
+  `.kiro/context/brand-guide.md` — generated from the codebase design system crossed with the
+  rendered app, with any inconsistencies surfaced for you to arbitrate. First run on a UI project
+  prompts to generate it; it's the source-of-truth the `design` skill builds to.
+- **QA enforces it.** For a UI change with a Design Authority, QA compares the rendered build's
+  design language against the authority (token/component conformance, **not** a pixel diff — content
+  differences don't count). A mismatch is a **FAIL that drives the normal QA↔mission fix loop**: the
+  build is restyled to the authority and re-QA'd, and the mission can't clear until it conforms.
 
 ## Code-only work is a different lane
 
