@@ -7,8 +7,8 @@ description: Fixes for the v1 issues developers actually hit.
 | --- | --- |
 | Install stops with `FATAL: no co-located kiro/ and KIRO_REGISTRY_ROOT is not set` | Pass the registry location explicitly: `KIRO_REGISTRY_ROOT=../revstar.ai-registry`. |
 | A bare `kiro-cli` says `profileArn is required` | Don't launch `kiro-cli` directly. Launch via `kiroctl open` (or the platform launcher), which handles client login first. |
-| Every prompt is refused with "You are not signed in to Mission Control" | Sign in once: `kiroctl gui` → **Sign in with Mission Control**. If Mission Control is down or the machine has no browser, `kiroctl sop bypass --hours 4 --reason "<why>"` (logged, max 72h). |
-| `kiroctl doctor` / `telemetry status` says "queued — waiting on Mission Control ingest" | Expected until Mission Control accepts the sign-in token at ingest. Events are kept and send automatically; nothing to do. |
+| Every prompt is refused with "You are not signed in to Mission Control" | Sign in once: `kiroctl gui` → **Sign in with Mission Control**. If Mission Control is down or the machine has no browser, `kiroctl sop bypass --hours 4 --reason mc-outage` (or `no-browser` / `other`; logged, max 72h). |
+| `kiroctl doctor` / `telemetry status` says "queued — waiting on Mission Control" | Expected until Mission Control's per-developer ingest key is switched on. Events are kept and send automatically; nothing to do. |
 | Telemetry not sending / says "kiroctl could not be found" | Re-run the installer (or `kiroctl update`) so `~/.kiro/kiroctl-install.json` records where the CLI lives, then `kiroctl telemetry repair`. |
 | The app asks "Which Mission Control project is this repo for?" | The repo matches several of your projects. Pick one — it's asked once per repo and saved in `.kiro/telemetry-project.json` (commit it so your team doesn't get asked). |
 | A gate doesn't fire | Confirm its `.enabled` flag file actually exists, then run `node kiro/gates/selftest.js` to isolate which gate is misbehaving. |

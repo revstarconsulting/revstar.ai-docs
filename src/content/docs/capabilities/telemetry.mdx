@@ -3,6 +3,8 @@ title: Telemetry
 description: The always-on adoption-telemetry emitter — what it sends to Mission Control, when, under whose identity, how it signs in, and how it repairs itself.
 ---
 
+import { Aside } from '@astrojs/starlight/components';
+
 The `telemetry-emit` gate reports RevStar.ai adoption to Mission Control
 (receiver: ADO #144788). It is an **always-on hook**: mandatory RevStar policy,
 **not arm-gated** — a deliberate, documented exception to "inert until armed". It
@@ -23,7 +25,7 @@ Seven event types, nothing else:
 | `skill_run` | A skill was invoked. |
 | `qa_result` | A QA run produced a result. |
 | `preflight` | A preflight check ran. |
-| `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`). |
+| `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`): hours + a reason from `mc-outage \| no-browser \| other`. **Kept locally** until Mission Control accepts this event type. |
 
 ## When it sends
 
@@ -33,16 +35,31 @@ batches opportunistically — on hook and skill activity, and at session start.
 
 Events can lag slightly, but they always roll up to the correct day: the server
 dates each event by its `occurred_at` and de-duplicates by `event_id`. Late,
-offline, batched, and retried sends are therefore safe. The spool holds up to
-5,000 events; beyond that the oldest are dropped (and `doctor` says so).
+offline, batched, and retried sends are therefore safe. Events waiting on Mission
+Control (not signed in yet, or the ingest key not available) are **kept** — the
+spool is only capped as a disk guard (100,000 events, months at real volumes);
+`doctor` warns well before that.
 
 ## Identity and sign-in
 
-Events are sent with your **Mission Control sign-in token** and reported under
-the verified `@revstarconsulting.com` email inside it — the same email Mission
-Control checks at ingest, so the two can never disagree. The token is refreshed
-silently from the stored refresh token (valid one year) right before each send,
-so a backlog queued while you were offline still sends.
+Events are sent with a **per-developer ingest key** that Mission Control issues
+off your sign-in: RevStar.ai presents your Mission Control sign-in once, receives a
+key scoped to telemetry ingest only, keeps it in your OS keychain, and sends it as
+`Authorization: RevStarIngest <key>`. It survives offline and late sends, and
+Mission Control can revoke it without signing you out. If ingest refuses the key,
+RevStar.ai requests a new one once; if that fails, events are kept and the app
+asks you to sign in again. Your sign-in token itself is never sent to ingest.
+
+Events are reported under the `@revstarconsulting.com` email of your Mission
+Control (Google Workspace) sign-in, and Mission Control binds the email to the key
+server-side.
+
+<Aside type="note">
+**Rollout:** Mission Control's key service is being built. Until it is switched
+on, machines that already have the legacy shared ingest key keep sending with it,
+and everyone else's events are kept locally and send automatically once it is on
+— nothing is lost.
+</Aside>
 
 Not signed in yet? Events are **held** locally — attributed to no one, never
 lost — and sent under your email the first time you sign in. Sign in from the
@@ -77,14 +94,14 @@ once. `kiroctl telemetry project --set <id>` pins one by hand.
 
 At the start of every `dev` session the `mc-session-health` hook checks the
 Mission Control connection in milliseconds (local files only) and launches a
-**detached** repair in the background — refresh the sign-in token, resolve the
+**detached** repair in the background — refresh the sign-in, get the ingest key, resolve the
 project, send held events, flush. Session start never waits on Mission Control.
 It only adds a note to the session when something that needs you **changes**.
 
 The same health model shows in `kiroctl doctor` (the `mc …` rows), in
 `kiroctl telemetry status`, and in the app under Settings → Mission Control
 (with a **Check now** button). Each row is *Working*, *Note* (expected — e.g.
-"queued — waiting on Mission Control ingest"), *Retrying*, or *Needs you* with
+"queued — waiting on Mission Control"), *Retrying*, or *Needs you* with
 the one thing to do.
 
 ## Always on, mandatory
@@ -115,5 +132,5 @@ it. (If a value is ever supplied it must be `"sandbox"` or `"prod"`.)
 | `kiroctl telemetry status` | Identity, queue depth, last flush, and the connection health rows. |
 | `kiroctl telemetry repair [--dir <p>]` | Run the self-repair now (refresh, project lookup, flush). |
 | `kiroctl telemetry flush` | Flush the spool manually. |
-| `kiroctl telemetry config [--endpoint <u>]` | View or set the ingest endpoint. |
+| `kiroctl telemetry config [--endpoint <u>] [--mint-url <u>\|off] [--auth minted\|shared-key]` | View or set the ingest endpoint and the ingest-key settings. |
 | `kiroctl telemetry project [--set <id>]` | Show or pin the Mission Control project for this workspace. |
