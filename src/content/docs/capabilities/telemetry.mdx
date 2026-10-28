@@ -45,10 +45,14 @@ spool is only capped as a disk guard (100,000 events, months at real volumes);
 Events are sent with a **per-developer ingest key** that Mission Control issues
 off your sign-in: RevStar.ai presents your Mission Control sign-in once, receives a
 key scoped to telemetry ingest only, keeps it in your OS keychain, and sends it as
-`Authorization: RevStarIngest <key>`. It survives offline and late sends, and
-Mission Control can revoke it without signing you out. If ingest refuses the key,
-RevStar.ai requests a new one once; if that fails, events are kept and the app
-asks you to sign in again. Your sign-in token itself is never sent to ingest.
+`Authorization: RevStarIngest <key>` to Mission Control's dedicated token route
+(`…/v1/ingest/revstar-ai/token`). It survives offline and late sends, and Mission
+Control can revoke it without signing you out. If ingest says the key is unknown
+or revoked, RevStar.ai requests a new one once; if that fails, events are kept and
+`doctor` / the app say what to do (sign in again, or ask Mission Control to activate
+your account). Your sign-in token itself is never sent to ingest. While a machine
+can't get a key and already has the legacy shared key, it keeps sending with that
+meanwhile, so the transition never drops telemetry.
 
 Events are reported under the `@revstarconsulting.com` email of your Mission
 Control (Google Workspace) sign-in, and Mission Control binds the email to the key
