@@ -77,9 +77,17 @@ The verdict is one of `ACCESS-OK | ACCESS-PARTIAL | ACCESS-BLOCKED |
 ACCESS-UNVALIDATED`; declared probes live in the `access` block of
 `qa-contract.json`.
 
-One check is **advisory only**: if a feature mission has a plan but no estimate (or a
-stale one) on record, preflight **warns and proceeds**. See
-[Estimation output contract](/workflows/pipeline/#estimation-output-contract).
+Two checks are **advisory only** — they warn and proceed:
+
+- **Estimate.** A feature mission with a plan but no estimate (or a stale one) on
+  record. See [Estimation output contract](/workflows/pipeline/#estimation-output-contract).
+- **SOP standards.** A plan grilled while Mission Control was unreachable carries
+  `SOP UNAVAILABLE (…)` under `## Standards`. Preflight re-pulls the standards for
+  the plan, saves them to `.kiro-mission-standards.json`, and adds a `sop-standards`
+  criterion to the ledger — PENDING if they came back, **UNVERIFIED** if they
+  didn't. UNVERIFIED is not MET, so the mission can't clear until someone signs in,
+  applies them and records the evidence. The plan file is never edited (its grill
+  receipt stays valid).
 
 ## The acceptance ledger
 
