@@ -267,6 +267,9 @@ The gear icon opens the **Settings** drawer:
   is saved once and reused across every project that needs it; it's stored in
   your OS keychain (with a `0600`-file fallback) and never shown back or
   written to config.
+- **Mission Control** — sign in / sign out, and the **Connection** health rows
+  (sign-in, telemetry, queue, project) with **Check now**. See
+  [Sign in to Mission Control](#5e-sign-in-to-mission-control).
 - **Unused clients** — clients no projects currently use, with a one-click delete.
 
 <Aside type="tip">
@@ -277,6 +280,22 @@ Prefer the CLI? `kiroctl client set-pat --slug <client>` reads the PAT from stdi
 Each project also has a **Report a bad run** action, for flagging a session
 that went wrong.
 
+### 5e. Sign in to Mission Control
+
+Kiro agent sessions (`dev`, `coder`, `scout`) need a **Mission Control sign-in** —
+it powers RevStar SOP standards and adoption telemetry. Until you sign in, the app
+shows a red **Critical — not signed in to Mission Control** banner and every prompt
+is refused with the same instruction.
+
+Click **Sign in with Mission Control** (the banner, or Settings → Mission Control),
+finish the Google sign-in in your browser with your `@revstarconsulting.com`
+account, and you're done — the sign-in lasts a year and refreshes silently. Sign-in
+is in the app only; there is no terminal sign-in command.
+
+If a repo matches more than one of your Mission Control projects, the app asks
+once which one it is for. No browser on the machine, or Mission Control down? See
+the [time-limited bypass](/capabilities/gates/#mission-control-sign-in).
+
 ## 6. Updating later
 
 ```sh
@@ -286,6 +305,10 @@ kiroctl update
 A verified pull of both repos + reinstall — bolt-on, never subtract, so your own
 customizations are preserved. Restart your Kiro session afterward so steering,
 skills and MCP servers reload. (On Windows, run it inside WSL.)
+
+If you aren't signed in to Mission Control yet, the update ends by opening the
+RevStar.ai app on its sign-in banner (or, with no display or `KIRO_NO_GUI=1`, by
+printing the one step to take).
 
 ## Release channels — stable vs beta
 

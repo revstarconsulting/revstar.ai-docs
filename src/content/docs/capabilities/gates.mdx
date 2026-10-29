@@ -1,17 +1,19 @@
 ---
 title: Gates
-description: The 11 hooks wired into the agents — inert until armed (except always-on telemetry), and always fail open.
+description: The 13 hooks wired into the agents — inert until armed (except the always-on telemetry and Mission Control hooks), and always fail open.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 Gates are hooks wired into the agents' tool calls. One property holds for all
-eleven, without exception, and one holds for all but one:
+thirteen, without exception, and one holds for all but three:
 
-- **Inert until armed — except `telemetry-emit`.** A gate does nothing until a
-  `.enabled` flag file exists for it. The one exception is `telemetry-emit`,
-  which is always on (see [Telemetry](/capabilities/telemetry/)). Arm one
-  globally or per project:
+- **Inert until armed — except the three always-on hooks.** A gate does nothing
+  until a `.enabled` flag file exists for it. The exceptions are
+  `telemetry-emit`, `mc-signin-gate` and `mc-session-health`, which are always
+  on because telemetry and the Mission Control sign-in are mandatory RevStar
+  policy (see [Telemetry](/capabilities/telemetry/)). Arm the others globally or
+  per project:
 
   ```sh
   touch ~/.kiro/gates/<name>.enabled          # everywhere
@@ -25,7 +27,7 @@ eleven, without exception, and one holds for all but one:
   ./install.sh --arm-safe
   ```
 
-- **Fails open.** (All eleven.) A gate that errors or isn't armed never blocks the call it
+- **Fails open.** (All thirteen.) A gate that errors or isn't armed never blocks the call it
   would otherwise inspect. An armed gate that doesn't fire is worse than no
   gate at all, because it's trusted — arm one at a time and verify it.
 
@@ -35,7 +37,7 @@ gate should be stopping something and isn't, confirm the flag file exists
 before assuming the rule doesn't apply.
 </Aside>
 
-## The eleven gates
+## The thirteen gates
 
 | Gate | Trigger | Kind | What it does |
 | --- | --- | --- | --- |
@@ -49,7 +51,9 @@ before assuming the rule doesn't apply.
 | `reuse-before-create-gate` | new-file write | soft | Warns once about a duplicate of an existing owner, then relents. |
 | `session-context` | Session start | inject | Injects a git snapshot into context. |
 | `update-notify` | Session start | inject | Reminds you when a newer version is available; rate-limited, fails open. |
-| `telemetry-emit` | read | always-on | Emits `skill_run` and opportunistically flushes the adoption-telemetry spool. The pack's only always-on hook — mandatory RevStar policy, not arm-gated. Never blocks; fails open. See [Telemetry](/capabilities/telemetry/). |
+| `telemetry-emit` | read | always-on | Emits `skill_run` and opportunistically flushes the adoption-telemetry spool. Mandatory RevStar policy, not arm-gated. Never blocks; fails open. See [Telemetry](/capabilities/telemetry/). |
+| `mc-signin-gate` | prompt submit (`dev`, `coder`, `scout`) | always-on block | Refuses the prompt until you are signed in to Mission Control. See [below](#mission-control-sign-in). |
+| `mc-session-health` | Session start (`dev`) | always-on inject | Checks the Mission Control connection locally, starts the background repair, and notes only *changes* that need you. See [Telemetry → Self-check](/capabilities/telemetry/#self-check-and-repair). |
 
 ## Kinds
 
@@ -57,8 +61,41 @@ before assuming the rule doesn't apply.
 - **block** — can refuse the tool call outright if its rule is violated.
 - **soft** — warns once, then gets out of the way rather than blocking
   repeatedly on the same finding.
-- **always-on** — runs without being armed and never refuses a call. Only
-  `telemetry-emit` is this kind.
+- **always-on** — runs without being armed. `telemetry-emit` and
+  `mc-session-health` never refuse anything; `mc-signin-gate` is the one
+  always-on hook that can refuse a prompt.
+
+## Mission Control sign-in
+
+RevStar SOP standards and adoption telemetry both run under your **Mission
+Control sign-in** (Google, `@revstarconsulting.com`), so every pack agent session
+requires it. Sign in once from the RevStar.ai app: `kiroctl gui` → **Sign in with
+Mission Control** (the red banner, or Settings → Mission Control). After a
+`kiroctl update` on a signed-out machine the app opens for you.
+
+`mc-signin-gate` decides from one small local status file — never the network —
+so it is fast and a Mission Control outage never blocks you. It refuses a prompt
+only when:
+
+- you are **not signed in**, or
+- Mission Control **definitively rejected** your saved sign-in (expired or
+  revoked).
+
+It allows the prompt when you are signed in, when a bypass is active, when
+Mission Control's kill switch is on, when the status is unknown or unreadable,
+when RevStar.ai's CLI can't be found, and on any internal error. A **running
+mission** that started while you were signed in keeps running (it gets a note
+instead of a block); new sessions are blocked after it clears.
+
+No browser on this machine, or Mission Control down? Use a time-limited, logged
+bypass (1–72 hours), reported to Mission Control:
+
+```sh
+kiroctl sop bypass --hours 4 --reason mc-outage    # mc-outage | no-browser | other
+kiroctl sop bypass --clear
+```
+
+The gate only runs in the pack's agents (`dev`, `coder`, `scout`).
 
 ## Verifying gates
 
@@ -69,7 +106,7 @@ Run the full self-test suite, which asserts every gate in both directions
 node kiro/gates/selftest.js
 ```
 
-A clean run reports **81/81**. Scope it to one gate or get verbose output:
+A clean run reports **107/107**. Scope it to one gate or get verbose output:
 
 ```sh
 node kiro/gates/selftest.js qa

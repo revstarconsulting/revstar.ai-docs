@@ -1,54 +1,112 @@
 ---
 title: Telemetry
-description: The always-on adoption-telemetry emitter — what it sends to Mission Control, when, under whose identity, and what it never sends.
+description: The always-on adoption-telemetry emitter — what it sends to Mission Control, when, under whose identity, how it signs in, and how it repairs itself.
 ---
 
+import { Aside } from '@astrojs/starlight/components';
+
 The `telemetry-emit` gate reports RevStar.ai adoption to Mission Control
-(receiver: ADO #144788). It is the pack's **first always-on hook**: mandatory
-RevStar policy, **not arm-gated** — a deliberate, documented exception to
-"inert until armed". It never blocks a tool call and fails open.
+(receiver: ADO #144788). It is an **always-on hook**: mandatory RevStar policy,
+**not arm-gated** — a deliberate, documented exception to "inert until armed". It
+never blocks a tool call and fails open.
+
+Telemetry runs under your **Mission Control sign-in** — the same Google sign-in
+that powers RevStar SOP standards. See [Gates → Mission Control sign-in](/capabilities/gates/#mission-control-sign-in).
 
 ## What it sends
 
-Six event types, nothing else:
+Seven event types, nothing else:
 
 | Event | Meaning |
 | --- | --- |
-| `mission_started` | A mission was set. |
-| `mission_cleared` | A mission was cleared with its acceptance ledger clean. |
-| `mission_failed` | A mission ended without clearing. |
+| `mission_started` | A mission was set (once per mission — re-running `--init` does not re-send it). |
+| `mission_cleared` | A mission was cleared with its acceptance ledger clean (once). |
+| `mission_failed` | A mission ended without clearing (once). |
 | `skill_run` | A skill was invoked. |
 | `qa_result` | A QA run produced a result. |
 | `preflight` | A preflight check ran. |
+| `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`): hours + a reason from `mc-outage \| no-browser \| other`. **Kept locally** until Mission Control accepts this event type. |
 
 ## When it sends
 
 Each event is written to a local durable spool the instant it happens, so
 telemetry never blocks you. A separate detached, throttled flusher then sends
-batches opportunistically — on hook and skill activity, and at session start
-and end.
+batches opportunistically — on hook and skill activity, and at session start.
 
 Events can lag slightly, but they always roll up to the correct day: the server
 dates each event by its `occurred_at` and de-duplicates by `event_id`. Late,
-offline, batched, and retried sends are therefore safe.
+offline, batched, and retried sends are therefore safe. Events waiting on Mission
+Control (not signed in yet, or the ingest key not available) are **kept** — the
+spool is only capped as a disk guard (100,000 events, months at real volumes);
+`doctor` warns well before that.
 
-## Identity
+## Identity and sign-in
 
-Events are reported under your `@revstarconsulting.com` email, bound at the
-**machine** level — the RevStar SSO login present on the machine — not the
-active session's SSO.
+Events are sent with a **per-developer ingest key** that Mission Control issues
+off your sign-in: RevStar.ai presents your Mission Control sign-in once, receives a
+key scoped to telemetry ingest only, keeps it in your OS keychain, and sends it as
+`Authorization: RevStarIngest <key>` to Mission Control's dedicated token route
+(`…/v1/ingest/revstar-ai/token`). It survives offline and late sends, and Mission
+Control can revoke it without signing you out. If ingest says the key is unknown
+or revoked, RevStar.ai requests a new one once; if that fails, events are kept and
+`doctor` / the app say what to do (sign in again, or ask Mission Control to activate
+your account). Your sign-in token itself is never sent to ingest. While a machine
+can't get a key and already has the legacy shared key, it keeps sending with that
+meanwhile, so the transition never drops telemetry.
 
-So a RevStar developer working in a project bound to a *client's* SSO still
-reports under their RevStar telemetry. The client only determines which project
-the work counts toward (`mc_project_id`), never who the developer is.
+Events are reported under the `@revstarconsulting.com` email of your Mission
+Control (Google Workspace) sign-in, and Mission Control binds the email to the key
+server-side.
+
+<Aside type="note">
+**Rollout:** Mission Control's key service is being built. Until it is switched
+on, machines that already have the legacy shared ingest key keep sending with it,
+and everyone else's events are kept locally and send automatically once it is on
+— nothing is lost.
+</Aside>
+
+Not signed in yet? Events are **held** locally — attributed to no one, never
+lost — and sent under your email the first time you sign in. Sign in from the
+RevStar.ai app (`kiroctl gui` → **Sign in with Mission Control**).
+
+A client project's SSO never changes who you are: the client only determines which
+project the work counts toward (`mc_project_id`).
 
 ## Privacy
 
 - **Email is the only PII.**
 - **No free-form content is ever sent** — no prompt text, source code, file
-  contents, or customer data.
+  contents, customer data, or repository names.
 - Events are strictly validated against an allowlist: unknown top-level fields
   are rejected, and enumerated fields use bounded values.
+
+## Project id (`mc_project_id`)
+
+After you sign in, RevStar.ai looks up your Mission Control projects and the
+projects that match the repo's git origin (the origin is used **only** for this
+lookup — it is never put on an event):
+
+- **exactly one** of your projects matches the repo → it is pinned automatically;
+- **several** match → the RevStar.ai app asks once — *"Which Mission Control
+  project is this repo for?"* — in a banner and under Settings → Mission Control;
+- **none** match → events simply omit `mc_project_id`.
+
+The pin lives in a committable `.kiro/telemetry-project.json`, so a team answers
+once. `kiroctl telemetry project --set <id>` pins one by hand.
+
+## Self-check and repair
+
+At the start of every `dev` session the `mc-session-health` hook checks the
+Mission Control connection in milliseconds (local files only) and launches a
+**detached** repair in the background — refresh the sign-in, get the ingest key, resolve the
+project, send held events, flush. Session start never waits on Mission Control.
+It only adds a note to the session when something that needs you **changes**.
+
+The same health model shows in `kiroctl doctor` (the `mc …` rows), in
+`kiroctl telemetry status`, and in the app under Settings → Mission Control
+(with a **Check now** button). Each row is *Working*, *Note* (expected — e.g.
+"queued — waiting on Mission Control"), *Retrying*, or *Needs you* with
+the one thing to do.
 
 ## Always on, mandatory
 
@@ -62,36 +120,21 @@ software.
 The off-switch is **server-side**, held by Mission Control — not a local toggle.
 If MC disables RevStar.ai telemetry, the ingest returns a terminal
 `403 {"disabled": true}`; the emitter then **drops its queued events** (it does
-not spool or replay them) and backs off before trying again. Nothing is blocked
-locally either way — the emitter always fails open.
+not spool or replay them) and backs off before trying again. While the kill
+switch is on, the Mission Control sign-in gate is also off.
 
 ## Environment
 
 Mission Control fans every event out to all environments and resolves each on
 its side, so `environment` is **advisory** — the emitter does not set or manage
-it, and there is no sandbox/prod switch to flip. (If a value is ever supplied it
-must be `"sandbox"` or `"prod"` so a typo is caught, but normally the field is
-simply omitted.)
+it. (If a value is ever supplied it must be `"sandbox"` or `"prod"`.)
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `kiroctl telemetry status` | Show queue depth, last flush, and identity. |
+| `kiroctl telemetry status` | Identity, queue depth, last flush, and the connection health rows. |
+| `kiroctl telemetry repair [--dir <p>]` | Run the self-repair now (refresh, project lookup, flush). |
 | `kiroctl telemetry flush` | Flush the spool manually. |
-| `kiroctl telemetry config [--endpoint <u>]` | View or set the ingest endpoint. |
-| `kiroctl telemetry project [--set <id>]` | Show or set the Mission Control project id for this workspace. |
-
-## Project id (`mc_project_id`)
-
-Project attribution is resolved **server-side by Mission Control**. Every event
-already carries the developer's RevStar email and the repo slug (`org/name`,
-auto-derived from the git origin), and Mission Control maps
-*(developer, repo) → project* at ingest from its own project-lookup data. The
-emitter does **not** call back into Mission Control to resolve a project and
-holds no lookup credential — it just emits.
-
-`kiroctl telemetry project --set <id>` is an optional override: it pins a
-specific `mc_project_id` in a committable `.kiro/telemetry-project.json` for the
-rare case where one repo maps to several projects. When no pin is set (the
-common case) the event omits `mc_project_id` and Mission Control resolves it.
+| `kiroctl telemetry config [--endpoint <u>] [--mint-url <u>\|off] [--auth minted\|shared-key]` | View or set the ingest endpoint and the ingest-key settings. |
+| `kiroctl telemetry project [--set <id>]` | Show or pin the Mission Control project for this workspace. |
