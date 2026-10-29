@@ -27,7 +27,7 @@ there is no `link`, `unlink`, or `install @latest`.
 | `kiroctl mission-report [--dir] [--transcript]` | Write a local, secret-scrubbed diagnostics bundle for auditing a mission run (no upload). |
 | `kiroctl telemetry status \| repair \| flush \| config \| project` | Adoption telemetry: identity + queue + connection health, run the self-repair now, manual flush, endpoint config, Mission Control project pin. |
 | `kiroctl sop status \| signout` | Mission Control sign-in (telemetry + SOP standards): show the connection state, or sign out. Sign **in** only in the app (`kiroctl gui` → "Sign in with Mission Control"). |
-| `kiroctl sop bypass --hours <1-72> [--reason mc-outage\|no-browser\|other] \| --clear` | Time-limited, logged bypass of the sign-in gate (reported to Mission Control once it accepts bypass reports). |
+| `kiroctl sop bypass --hours <1-72> [--reason mc-outage\|no-browser\|other] \| --clear` | Time-limited, logged bypass of the sign-in gate (reported to Mission Control). |
 | `kiroctl sop nudge` | What the installer runs at the end: signed out → open the app on its sign-in banner, or print the instruction (no display / `KIRO_NO_GUI=1`). |
 | `kiroctl sop token [--force]` | Tooling: print a fresh id-token from the stored sign-in (`--force` re-mints). |
 
