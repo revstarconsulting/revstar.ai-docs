@@ -109,6 +109,26 @@ The wrap also captures **estimate vs actual** — autonomous time, units, and hu
 supervision/verification minutes — and appends one row to
 `memory/estimation-calibration.md` for [self-calibration](/workflows/pipeline/#self-calibration).
 
+## Completion honesty: blocked is not complete
+
+A mission must never report success when it cannot actually finish. Three mechanisms enforce that:
+
+- **Declared dependencies, checked up front.** `grill-me` records a plan's external dependencies in a
+  `## Dependencies` block — each tagged as blocking the **build** or blocking **completion**, with a
+  runnable check. Before the loop starts, the pre-flight runs the checks and an **unsatisfied
+  completion-blocker halts for your decision** (resolve it, drop the gated criterion, defer, or mark it
+  MET-pending). A mission never starts on a goal it can't finish, and "not blocking" always specifies
+  *building* vs *finishing*.
+- **Blocked, but still progressing.** If a completion-blocker is hit, the run **notes it and does all
+  unblocked work first** — it never halts the whole mission on one blocker. When no unblocked work
+  remains, it **stops and honestly declares BLOCKED**: what's done, the outstanding criterion, and the
+  **specific action that resolves it**. A pending human / money / external decision is a stop-and-await,
+  not "complete anyway," and the summary is **never framed as success**. When the blocker clears, the run
+  resumes and finishes.
+- **No spinning.** The turn recorder fingerprints the ledger's MET-count each turn; if nothing has
+  flipped MET across a grace turn, it signals **"no progress — hold"**, so the loop stops re-running the
+  same work against an unchanged blocker instead of burning iterations toward `--max`.
+
 ## Reversibility: when to stop and ask
 
 Most mid-mission forks are **two-way doors** — cheap to undo or redo. Decide
