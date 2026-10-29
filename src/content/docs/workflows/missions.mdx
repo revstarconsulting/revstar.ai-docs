@@ -128,6 +128,11 @@ A mission must never report success when it cannot actually finish. Three mechan
 - **No spinning.** The turn recorder fingerprints the ledger's MET-count each turn; if nothing has
   flipped MET across a grace turn, it signals **"no progress — hold"**, so the loop stops re-running the
   same work against an unchanged blocker instead of burning iterations toward `--max`.
+- **A finished mission is cleared, not parked.** Once every acceptance criterion is MET, the turn
+  recorder will not grant a clean stop — even `human-blocked-confirmed` is overridden back to *continue*
+  ("done but not cleared") until the task list is reconciled and the mission is actually cleared. A
+  completed mission cannot be stranded as blocked or stopped; it must be cleared, which is the only
+  legitimate end.
 
 ## Reversibility: when to stop and ask
 
