@@ -101,6 +101,7 @@ block (a fenced `kiro-estimate` code block) with all of these fields filled:
 | `expected` | The headline expected-case number. |
 | `worst-case` | Kept separate from `expected`, never blended into it. |
 | `one-way-doors` | The irreversible decisions the mission will stop for. |
+| `conventional` *(optional)* | How long the same work would take a developer by hand, without RevStar.ai (e.g. `3-5 days`). Sent to Mission Control when the mission starts, as the **Time Saved** baseline (range midpoint; a day counts 8 h). Omit it rather than guess. |
 
 The point is to make the **assumptions** behind the numbers visible, reconcilable
 and gradable against the actual — not just to print a figure.

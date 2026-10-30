@@ -19,11 +19,11 @@ Seven event types, nothing else:
 
 | Event | Meaning |
 | --- | --- |
-| `mission_started` | A mission was set (once per mission — re-running `--init` does not re-send it). |
-| `mission_cleared` | A mission was cleared with its acceptance ledger clean (once). |
+| `mission_started` | A mission was set (once per mission — re-running `--init` does not re-send it). Carries `estimated_conventional_hours` when the plan's estimate has a `conventional:` value. |
+| `mission_cleared` | A mission was cleared from its completion audit (once). `hours_autonomous` is measured from the run's active time; `actual_hours` is sent only when you give it at clear time. A bare clear from any other state is reported as `mission_failed` (abandoned). |
 | `mission_failed` | A mission ended without clearing (once). |
 | `skill_run` | A skill was invoked. |
-| `qa_result` | A QA run produced a result. |
+| `qa_result` | A full QA run produced a result, with `bugs_found` (cases failing this run) and `bugs_fixed` (cases that failed earlier in the mission and pass now). |
 | `preflight` | A preflight check ran. |
 | `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`): hours + a reason from `mc-outage \| no-browser \| other`. |
 
