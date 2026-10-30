@@ -76,15 +76,20 @@ project the work counts toward (`mc_project_id`).
 
 - **Email is the only PII.**
 - **No free-form content is ever sent** — no prompt text, source code, file
-  contents, customer data, or repository names.
+  contents, or customer data. The one project identifier sent is the repository's
+  git origin as `owner/name` (e.g. `acme/web-app`), so Mission Control can
+  attribute work to the right project.
 - Events are strictly validated against an allowlist: unknown top-level fields
   are rejected, and enumerated fields use bounded values.
 
-## Project id (`mc_project_id`)
+## Project attribution (`repo` + `mc_project_id`)
 
-After you sign in, RevStar.ai looks up your Mission Control projects and the
-projects that match the repo's git origin (the origin is used **only** for this
-lookup — it is never put on an event):
+Every event carries `repo` (the git origin as `owner/name`), and `mc_project_id`
+when the project is pinned. Mission Control uses the pin first, then matches the
+repo, then falls back to "All-RevStar".
+
+To pin the project, after you sign in RevStar.ai looks up your Mission Control
+projects:
 
 - **exactly one** of your projects matches the repo → it is pinned automatically;
 - **several** match → the RevStar.ai app asks once — *"Which Mission Control
