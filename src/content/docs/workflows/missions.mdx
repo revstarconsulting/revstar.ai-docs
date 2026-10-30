@@ -133,6 +133,15 @@ A mission must never report success when it cannot actually finish. Three mechan
   ("done but not cleared") until the task list is reconciled and the mission is actually cleared. A
   completed mission cannot be stranded as blocked or stopped; it must be cleared, which is the only
   legitimate end.
+- **Built is not accepted.** A criterion gated by a declared completion-blocker (via the plan's
+  `## Dependencies`) **cannot be marked MET** while that blocker's check is unsatisfied — `mission-state`
+  hard-refuses it. A human can assert a manual resolution with `--completion-resolved` (interactive only);
+  an autonomous run never self-waves, it takes the honest BLOCKED exit. On clear, a durable **honest-exit
+  record** captures the state the mission ended in (COMPLETE / PARTIAL / FAILED + what was outstanding).
+- **Decide two-way doors, don't bundle them.** The worked DO/DON'T lives in the mission skill's
+  `references/autonomy-completion.md`: decide reversible forks yourself and log them, surface only genuine
+  one-way doors, and never hand back a mixed "decisions for you" list — **high blast radius ≠ one-way** (a
+  fleet flag-flip with a tested rollback is a two-way door).
 
 ## Reversibility: when to stop and ask
 
