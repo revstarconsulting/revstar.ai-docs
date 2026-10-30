@@ -55,6 +55,14 @@ which files declare routes), and the Phase-0 pipeline runs off it:
   fact, so a legitimate single-case area can't go invisible.
 - **`qa-contract-validate.js`** — checks the contract against a mechanical floor,
   and hard-blocks a production target.
+- **`qa-orphaned-backend.js`** — for each declared primary action, greps the declared source roots for its
+  backend caller and emits a *lead* the agent adjudicates (never a hard fail), so a capability that shipped
+  backend-complete but has no frontend caller surfaces as a reachability DRIFT instead of passing.
+- **Two newer contract dimensions, both declaration-gated with a verdict on the coverage receipt:**
+  **`data`** — per live-data page, verify the page renders the REAL producer's values (seed → capture →
+  value-presence; *healthy-but-empty* is a DEFECT and *unverifiable* is never a pass, never a hand-authored
+  fixture); **`reachability`** — per primary action, confirm it is reachable from the user's real entry
+  page (bypass-only ⇒ DRIFT).
 - **`qa-egress-probe.js`** / **`qa-case-decay.js`** — prove the fake egress sink
   is real before a run trusts it, and tier boringly-green cases into a sampled set
   so the mandatory load stays bounded across runs.
