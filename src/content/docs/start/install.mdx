@@ -15,6 +15,36 @@ and your Azure DevOps PAT.
   href="https://github.com/revstarconsulting/revstar.ai/blob/v1/INSTALL.md"
 />
 
+## Fastest: the one-click installer
+
+The quickest way to install RevStar.ai is the one-click installer on the Mission
+Control **Downloads** page:
+
+<LinkCard
+  title="Mission Control → Downloads"
+  description="Sign in with your @revstarconsulting.com Google account, then download the installer for your OS."
+  href="https://revstarconsulting.net/dashboard/downloads"
+/>
+
+<Steps>
+
+1. Open **[revstarconsulting.net/dashboard/downloads](https://revstarconsulting.net/dashboard/downloads)**
+   and sign in with your **@revstarconsulting.com** Google account.
+2. Download the installer for your operating system (macOS, Windows or Linux).
+3. Run it and follow the prompts.
+4. When it finishes, open the RevStar.ai app (`kiroctl gui`) and click **Sign in with
+   Mission Control** — Kiro agent sessions need it (see [§5e](#5e-sign-in-to-mission-control)).
+5. Check the install: `kiroctl doctor` and `kiroctl telemetry status` should show no
+   `FAIL` / `[action]` lines.
+
+</Steps>
+
+Already installed? You don't need the installer again — run `kiroctl update` to get
+new versions (see [Updating later](#6-updating-later)).
+
+If the one-click installer doesn't suit your machine, use the bootstrap scripts
+below or the manual steps after them.
+
 ## 0. One-shot bootstrap (new / near-bare machine)
 
 If the machine doesn't yet have Node, Kiro CLI (or, on Windows, WSL), use the
