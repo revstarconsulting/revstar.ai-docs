@@ -17,33 +17,119 @@ and your Azure DevOps PAT.
 
 ## Fastest: the one-click installer
 
-The quickest way to install RevStar.ai is the one-click installer on the Mission
-Control **Downloads** page:
+The quickest way to install RevStar.ai is the one-click installer on Mission
+Control's **Developer Installers** page:
 
 <LinkCard
-  title="Mission Control → Downloads"
+  title="Mission Control → Developer Installers"
   description="Sign in with your @revstarconsulting.com Google account, then download the installer for your OS."
   href="https://revstarconsulting.net/dashboard/downloads"
 />
 
+The page (also under the **SOP Wiki** menu) offers three installers, kept current
+from the `v1` branch of the `revstar.ai` repo. Each tile shows the version (commit),
+a **SHA-256** checksum and when it was last refreshed.
+
+| Tile | File | Use it for |
+| --- | --- | --- |
+| **macOS** | `bootstrap-macos.sh` | A Mac. Installs everything natively. |
+| **Windows** | `bootstrap-windows.ps1` | A Windows PC without WSL yet. Sets up WSL, then everything inside it. |
+| **WSL / Linux** | `bootstrap-wsl.sh` | An existing WSL (Ubuntu) or native Linux shell. |
+
+<Aside type="caution" title="You still need GitHub access">
+The installer downloads RevStar.ai's two private repos (`revstar.ai` and
+`revstar.ai-registry`), so your machine needs a **GitHub account in the RevStar org**
+and **git**, signed in once with `gh auth login` (or an SSH key loaded with
+`eval "$(ssh-agent -s)" && ssh-add`). Without it the installer stops with
+**BLOCKED: could not clone…** and the exact fix — it never half-installs.
+</Aside>
+
+<Tabs syncKey="os">
+  <TabItem label="macOS" icon="apple">
+    <Steps>
+
+    1. Download **macOS** from the Downloads page.
+    2. Optional: check the file matches the SHA-256 shown on the tile:
+       `shasum -a 256 ~/Downloads/bootstrap-macos.sh`
+    3. In **Terminal**:
+       ```sh
+       bash ~/Downloads/bootstrap-macos.sh
+       ```
+       It installs only what's missing: `fnm` (per-user, no Homebrew), Node LTS,
+       `kiro-cli`, then clones `revstar.ai` and `revstar.ai-registry` into your home
+       folder (`~/revstar.ai`, `~/revstar.ai-registry`) and runs the pack installer.
+
+    </Steps>
+  </TabItem>
+  <TabItem label="Windows" icon="seti:windows">
+    <Steps>
+
+    1. Download **Windows** from the Downloads page.
+    2. Optional: check the checksum in PowerShell:
+       `Get-FileHash $HOME\Downloads\bootstrap-windows.ps1 -Algorithm SHA256`
+    3. In **PowerShell**:
+       ```powershell
+       powershell -ExecutionPolicy Bypass -File $HOME\Downloads\bootstrap-windows.ps1
+       ```
+       It asks for administrator rights (needed to install WSL), installs WSL and
+       Ubuntu, then tells you what to do next:
+       - **If Windows needs a reboot**, reboot first.
+       - **Open Ubuntu** from the Start menu. The first launch asks you to create
+         your Linux username and password.
+    4. In the Ubuntu window, run the **Stage 2** command the script printed:
+       ```sh
+       git clone https://github.com/revstarconsulting/revstar.ai.git ~/revstar.ai \
+         && cd ~/revstar.ai && ./scripts/bootstrap-wsl.sh
+       ```
+       That installs Node, `kiro-cli`, the registry and the pack inside WSL. (Run
+       `gh auth login` in Ubuntu first if the clone is refused.)
+
+    </Steps>
+    RevStar.ai runs inside WSL from then on — use the Ubuntu terminal for
+    `kiroctl` and `kiro-cli`.
+  </TabItem>
+  <TabItem label="WSL / Linux" icon="linux">
+    <Steps>
+
+    1. Download **WSL / Linux** from the Downloads page. On WSL the file lands in
+       Windows' Downloads folder: `/mnt/c/Users/<you>/Downloads/`.
+    2. Optional: `sha256sum <path>/bootstrap-wsl.sh` and compare with the tile.
+    3. In your WSL / Linux shell:
+       ```sh
+       bash /mnt/c/Users/<you>/Downloads/bootstrap-wsl.sh     # WSL
+       bash ~/Downloads/bootstrap-wsl.sh                      # native Linux
+       ```
+       It installs `fnm`, Node LTS and `kiro-cli` if missing, clones `revstar.ai` and
+       `revstar.ai-registry` into your home folder, and runs the pack installer.
+       Add `--enable-passwordless-sudo` to opt in to passwordless sudo (see below).
+
+    </Steps>
+  </TabItem>
+</Tabs>
+
+**Every installer** is safe to re-run (it only fills in what's missing and pulls
+updates), accepts `--dry-run` (`-DryRun` on Windows) to preview, and ends with the
+pack's own self-test (`selftest PASSED`).
+
+**When it finishes:**
+
 <Steps>
 
-1. Open **[revstarconsulting.net/dashboard/downloads](https://revstarconsulting.net/dashboard/downloads)**
-   and sign in with your **@revstarconsulting.com** Google account.
-2. Download the installer for your operating system (macOS, Windows or Linux).
-3. Run it and follow the prompts.
-4. When it finishes, open the RevStar.ai app (`kiroctl gui`) and click **Sign in with
-   Mission Control** — Kiro agent sessions need it (see [§5e](#5e-sign-in-to-mission-control)).
-5. Check the install: `kiroctl doctor` and `kiroctl telemetry status` should show no
-   `FAIL` / `[action]` lines.
+1. Open a **new** terminal so `fnm`, Node and `kiro-cli` are on your `PATH`.
+2. Sign in to Kiro if prompted (`kiro-cli login`, a one-time step).
+3. Sign in to Mission Control: run `kiroctl gui` and click **Sign in with Mission
+   Control** — Kiro agent sessions need it (see [§5e](#5e-sign-in-to-mission-control)).
+   The installer tells you if you're not signed in yet.
+4. Check the install: `kiroctl doctor` and `kiroctl telemetry status` should show no
+   `FAIL` or `[action]` lines.
 
 </Steps>
 
-Already installed? You don't need the installer again — run `kiroctl update` to get
-new versions (see [Updating later](#6-updating-later)).
+Already installed? Don't re-download — run `kiroctl update` to get new versions
+(see [Updating later](#6-updating-later)).
 
-If the one-click installer doesn't suit your machine, use the bootstrap scripts
-below or the manual steps after them.
+The scripts behind the Downloads page are the same ones in the repo's `scripts/`
+folder, so the clone-based steps below are equivalent.
 
 ## 0. One-shot bootstrap (new / near-bare machine)
 
