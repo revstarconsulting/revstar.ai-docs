@@ -9,6 +9,7 @@ In a terminal: `kiroctl diagnose --out report.txt`. See [Telemetry → Diagnosti
 
 | Symptom | Fix |
 | --- | --- |
+| Settings → Mission Control shows **Rejected events** | Click **Download errors** next to Check now and send the saved file (in Downloads) to the maintainer. |
 | Developer is signed in but nothing shows in Mission Control, and diagnostics says **skill uses recorded: NONE** | The skill-use hook never fired on that machine. Check the **Live Kiro session test** rows: a `read denied … workspace-escape` line means Kiro refused to read the skill file, so the hook never saw it. Send the report to the maintainer. |
 | Install stops with `FATAL: no co-located kiro/ and KIRO_REGISTRY_ROOT is not set` | You have an installer from before 2026-11-01. Download it again from the [Downloads page](https://revstarconsulting.net/dashboard/downloads) and re-run it. It now clones the registry itself. For a manual install, pass the location: `KIRO_REGISTRY_ROOT=../revstar.ai-registry`. |
 | A bare `kiro-cli` says `profileArn is required` | Don't launch `kiro-cli` directly. Launch via `kiroctl open` (or the platform launcher), which handles client login first. |

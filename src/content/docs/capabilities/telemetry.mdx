@@ -120,6 +120,14 @@ The same health model shows in `kiroctl doctor` (the `mc …` rows), in
 "queued — waiting on Mission Control"), *Retrying*, or *Needs you* with
 the one thing to do.
 
+### Download errors
+
+Settings → Mission Control → **Download errors** saves a text file to your
+Downloads folder with what Mission Control rejected (`telemetry/rejected.log`),
+the last send, the last background check and the current health rows. It's
+redacted the same way as the diagnostics report. Send it to the maintainer when
+the **Rejected events** row appears.
+
 ### Diagnostics report
 
 For anything those rows don't explain, run the full self-diagnostic: in the app,
@@ -132,7 +140,7 @@ It checks:
 - **Connections:** the Mission Control self-repair (sign-in refresh, ingest key, project, send).
 - **Mission Control & telemetry:** sign-in, endpoint, how many skill uses were ever recorded, what's queued, the last send, the last heartbeat.
 - **Doctor:** every `kiroctl doctor` row.
-- **Live Kiro session test** (optional, about 15 seconds): runs a real `dev` session that reads a skill, then confirms the skill use was recorded. It also catches Kiro refusing the read (`workspace-escape`).
+- **Live Kiro session test** (optional, about 15 seconds each): runs a real `dev` session that reads a skill, then confirms the skill use was recorded. It runs in your normal home if Kiro is logged in there, and in the first client you're signed in to, from one of that client's projects (the setup you actually work in). It also catches Kiro refusing the read (`workspace-escape`). Kiro logins are kept per client, so "not logged in outside client projects" is normal.
 
 Problems are listed first. **Copy report** or **Download report** gives you text
 to send to the RevStar.ai maintainer. The report includes your email, versions,
