@@ -93,12 +93,33 @@ To pin the project, after you sign in RevStar.ai looks up your Mission Control
 projects:
 
 - **exactly one** of your projects matches the repo → it is pinned automatically;
-- **several** match → the RevStar.ai app asks once — *"Which Mission Control
-  project is this repo for?"* — in a banner and under Settings → Mission Control;
-- **none** match → events simply omit `mc_project_id`.
+- **several** match, or the repo belongs to a project you're not on → the RevStar.ai
+  app asks once, *"Which Mission Control project is this repo for?"*, in a banner
+  and under Settings → Mission Control;
+- **none** match → events omit `mc_project_id` and carry the repo only;
+- you're on **one** project and Mission Control won't say which project owns the
+  repo (most developers) → that project is pinned, as the best available guess.
 
-The pin lives in a committable `.kiro/telemetry-project.json`, so a team answers
-once. `kiroctl telemetry project --set <id>` pins one by hand.
+The pin is saved per folder in `.kiro/telemetry-project.json` (committable, so a
+team answers once), in the folder where your Kiro sessions start: the project's
+repo when it has one, otherwise the project folder.
+
+**Automatic pins are re-checked once a day.** If Mission Control later adds you
+to the repo's real project, the pin moves, or the app asks you to pick. Pins you
+chose yourself are never changed.
+
+**Wrong project?** Run [Diagnostics](#diagnostics-report) and look at **Project
+attribution**. For each project and repo it shows which Mission Control project
+the events go to, why (picked by you, or automatic), whether that matches the
+repo in Mission Control, and what was recently reported. To fix a pin:
+
+- `kiroctl telemetry project --reset --dir <repo folder>` drops it and looks it up
+  again (the app asks if several projects fit);
+- `kiroctl telemetry project --set <id> --dir <repo folder>` pins one by hand.
+
+If your real project isn't in the **your projects** list, Mission Control doesn't
+have you on it yet. Ask the Mission Control team to add you first, otherwise
+RevStar.ai can't attribute work to it.
 
 <Aside type="note" title="client_heartbeat is queued for now">
 Mission Control rejects event types it doesn't know yet, so `client_heartbeat` is
@@ -139,6 +160,7 @@ It checks:
 - **Skills:** every installed skill is readable and matches the pack.
 - **Connections:** the Mission Control self-repair (sign-in refresh, ingest key, project, send).
 - **Mission Control & telemetry:** sign-in, endpoint, how many skill uses were ever recorded, what's queued, the last send, the last heartbeat.
+- **Project attribution:** your Mission Control projects, the project each of your app projects and repos reports to and why, whether it matches the repo, and the recently reported repo → project pairs.
 - **Doctor:** every `kiroctl doctor` row.
 - **Live Kiro session test** (optional, about 15 seconds each): runs a real `dev` session that reads a skill, then confirms the skill use was recorded. It runs in your normal home if Kiro is logged in there, and in the first client you're signed in to, from one of that client's projects (the setup you actually work in). It also catches Kiro refusing the read (`workspace-escape`). Kiro logins are kept per client, so "not logged in outside client projects" is normal.
 
@@ -177,4 +199,4 @@ it. (If a value is ever supplied it must be `"sandbox"` or `"prod"`.)
 | `kiroctl telemetry repair [--dir <p>]` | Run the self-repair now (refresh, project lookup, flush). |
 | `kiroctl telemetry flush` | Flush the spool manually. |
 | `kiroctl telemetry config [--endpoint <u>] [--mint-url <u>\|off] [--auth minted\|shared-key]` | View or set the ingest endpoint and the ingest-key settings. |
-| `kiroctl telemetry project [--set <id>]` | Show or pin the Mission Control project for this workspace. |
+| `kiroctl telemetry project [--set <id> \| --reset] [--dir <p>]` | Show, pin by hand, or drop and re-resolve the Mission Control project for a folder. |
