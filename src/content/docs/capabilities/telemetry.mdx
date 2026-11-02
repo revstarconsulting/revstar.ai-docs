@@ -15,7 +15,7 @@ that powers RevStar SOP standards. See [Gates → Mission Control sign-in](/capa
 
 ## What it sends
 
-Seven event types, nothing else:
+Eight event types, nothing else:
 
 | Event | Meaning |
 | --- | --- |
@@ -26,6 +26,7 @@ Seven event types, nothing else:
 | `qa_result` | A full QA run produced a result, with `bugs_found` (cases failing this run) and `bugs_fixed` (cases that failed earlier in the mission and pass now). |
 | `preflight` | A preflight check ran. |
 | `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`): hours + a reason from `mc-outage \| no-browser \| other`. |
+| `client_heartbeat` | RevStar.ai is installed, signed in and in use on this machine, so you appear in Mission Control even on a day with no other events. Sent at most **once per machine per day**, from the first of: a `dev`/`coder`/`scout` session starting (`trigger: session`), the app opening (`app`), or an install / `kiroctl update` (`install`). Carries the channel, platform, Kiro version, and two yes/no flags: the pack is current and the default agent is a RevStar.ai agent. No paths, repo names or project. |
 
 ## When it sends
 
@@ -99,6 +100,12 @@ projects:
 The pin lives in a committable `.kiro/telemetry-project.json`, so a team answers
 once. `kiroctl telemetry project --set <id>` pins one by hand.
 
+<Aside type="note" title="client_heartbeat is queued for now">
+Mission Control rejects event types it doesn't know yet, so `client_heartbeat` is
+recorded and kept in the local queue until Mission Control accepts it. It then
+sends with no action from you. `telemetry status` shows it as queued meanwhile.
+</Aside>
+
 ## Self-check and repair
 
 At the start of every `dev` session the `mc-session-health` hook checks the
@@ -112,6 +119,25 @@ The same health model shows in `kiroctl doctor` (the `mc …` rows), in
 (with a **Check now** button). Each row is *Working*, *Note* (expected — e.g.
 "queued — waiting on Mission Control"), *Retrying*, or *Needs you* with
 the one thing to do.
+
+### Diagnostics report
+
+For anything those rows don't explain, run the full self-diagnostic: in the app,
+**Settings → Diagnostics → Run diagnostics** (or `kiroctl diagnose` in a terminal).
+It checks:
+
+- **System:** OS, Node, `kiroctl` version and channel, `kiro-cli` version, and whether you're logged in to Kiro.
+- **Installation:** the install record and both folders, whether GitHub is reachable for updates, every hook script the `dev`/`coder`/`scout` agents reference, the sign-in gate and telemetry hook wiring, the default agent, steering.
+- **Skills:** every installed skill is readable and matches the pack.
+- **Connections:** the Mission Control self-repair (sign-in refresh, ingest key, project, send).
+- **Mission Control & telemetry:** sign-in, endpoint, how many skill uses were ever recorded, what's queued, the last send, the last heartbeat.
+- **Doctor:** every `kiroctl doctor` row.
+- **Live Kiro session test** (optional, about 15 seconds): runs a real `dev` session that reads a skill, then confirms the skill use was recorded. It also catches Kiro refusing the read (`workspace-escape`).
+
+Problems are listed first. **Copy report** or **Download report** gives you text
+to send to the RevStar.ai maintainer. The report includes your email, versions,
+paths (home shown as `~`) and statuses. It never reads token or key files, and
+anything token-shaped is removed.
 
 ## Always on, mandatory
 
@@ -139,6 +165,7 @@ it. (If a value is ever supplied it must be `"sandbox"` or `"prod"`.)
 | Command | What it does |
 | --- | --- |
 | `kiroctl telemetry status` | Identity, queue depth, last flush, and the connection health rows. |
+| `kiroctl diagnose [--no-live] [--json] [--out <file>]` | The full diagnostics report (same as Settings → Diagnostics). Exits non-zero if anything fails. |
 | `kiroctl telemetry repair [--dir <p>]` | Run the self-repair now (refresh, project lookup, flush). |
 | `kiroctl telemetry flush` | Flush the spool manually. |
 | `kiroctl telemetry config [--endpoint <u>] [--mint-url <u>\|off] [--auth minted\|shared-key]` | View or set the ingest endpoint and the ingest-key settings. |
