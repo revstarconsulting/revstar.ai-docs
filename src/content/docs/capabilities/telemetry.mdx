@@ -26,7 +26,7 @@ Eight event types, nothing else:
 | `qa_result` | A full QA run produced a result, with `bugs_found` (cases failing this run) and `bugs_fixed` (cases that failed earlier in the mission and pass now). |
 | `preflight` | A preflight check ran. |
 | `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`): hours + a reason from `mc-outage \| no-browser \| other`. |
-| `client_heartbeat` | RevStar.ai is installed, signed in and in use on this machine, so you appear in Mission Control even on a day with no other events. Sent at most **once per machine per day**, from the first of: a `dev`/`coder`/`scout` session starting (`trigger: session`), the app opening (`app`), or an install / `kiroctl update` (`install`). Carries the channel, platform, Kiro version, and two yes/no flags: the pack is current and the default agent is a RevStar.ai agent. No paths, repo names or project. |
+| `client_heartbeat` | RevStar.ai is installed, signed in and in use on this machine, so you appear in Mission Control even on a day with no other events. Sent at most **once per machine per day** (sent from 0.6.8; 0.6.5–0.6.7 recorded it but held it locally), from the first of: a `dev`/`coder`/`scout` session starting (`trigger: session`), the app opening (`app`), or an install / `kiroctl update` (`install`). Carries the channel, platform, Kiro version, and two yes/no flags: the pack is current and the default agent is a RevStar.ai agent. No paths, repo names or project. |
 
 ## When it sends
 
@@ -121,11 +121,6 @@ If your real project isn't in the **your projects** list, Mission Control doesn'
 have you on it yet. Ask the Mission Control team to add you first, otherwise
 RevStar.ai can't attribute work to it.
 
-<Aside type="note" title="client_heartbeat is queued for now">
-Mission Control rejects event types it doesn't know yet, so `client_heartbeat` is
-recorded and kept in the local queue until Mission Control accepts it. It then
-sends with no action from you. `telemetry status` shows it as queued meanwhile.
-</Aside>
 
 ## Self-check and repair
 
