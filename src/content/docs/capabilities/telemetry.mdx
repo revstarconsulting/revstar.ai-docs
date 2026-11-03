@@ -136,6 +136,16 @@ The same health model shows in `kiroctl doctor` (the `mc …` rows), in
 "queued — waiting on Mission Control"), *Retrying*, or *Needs you* with
 the one thing to do.
 
+**What Mission Control did with your data.** Two rows report the server's answer, not just the
+attempt to send:
+
+- **Heartbeat:** "last accepted by Mission Control …", or **Needs you** with Mission Control's
+  reason when it was rejected (you won't show as active). A heartbeat recorded but not yet confirmed
+  is a note, never *Working*.
+- **Rejected events:** the latest rejection's time, event type and reason. It's **Needs you** only
+  if it happened since your last update and within 7 days, because rejected events are dropped, not
+  retried. Older rejections show as a note.
+
 ### Download errors
 
 Settings → Mission Control → **Download errors** saves a text file to your
