@@ -11,9 +11,9 @@ there is no `link`, `unlink`, or `install @latest`.
 | `kiroctl client add \| list \| rm` | Register, list, or remove clients. |
 | `kiroctl client set-pat --slug <s>` | Set that client's Azure DevOps PAT, read from stdin. |
 | `kiroctl project new --dir --client [--scaffold]` | Create a new client-bound project at `--dir`. |
-| `kiroctl open --dir [--run]` | Launch a project's Kiro session, optionally running a command on start. |
+| `kiroctl open --dir [--run]` | Launch a project's Kiro session, optionally running a command on start. When the client has a Mobile Next key, also passes it as `MOBILENEXT_API_KEY` and writes the project's `mobilenext` MCP entry. |
 | `kiroctl profile --dir [--platform iterm2\|linux] [--install]` | Generate (and optionally install) a terminal launch profile. |
-| `kiroctl doctor [--governance]` | Diagnose the local setup; `--governance` also checks capability governance rules. |
+| `kiroctl doctor [--governance]` | Diagnose the local setup; `--governance` also checks capability governance rules. Adds mobile testing rows for projects with a mobile repo or a Mobile Next key. |
 | `kiroctl diagnose [--no-live] [--json] [--out <file>]` | Full self-diagnostic report to send to the maintainer: install, skills, connections, telemetry, and a live Kiro session test (`--no-live` skips it). Same as the app's **Settings → Diagnostics**. |
 | `kiroctl onboard --kind --name --source` | Register a custom skill, agent, or hook (`--kind skill\|agent\|hook`). |
 | `kiroctl sync [--target --ref]` | Pull registry updates into the project, edit-preserving. |
@@ -25,6 +25,12 @@ there is no `link`, `unlink`, or `install @latest`.
 | `kiroctl version` | Print the installed `kiroctl` version. |
 | `kiroctl client set-ado --slug <s> [--ado-org --ado-project --ado-pm]` | Set the client's Azure DevOps org URL, default project, and PM (injected on open). |
 | `kiroctl project set-env --dir [--base-url --env --branch --backend-query]` | Capture the project's staging/dev QA target + access; scaffolds `qa-contract.json`. |
+| `kiroctl mobile key set \| test \| remove --slug <client>` | Mobile app QA: store the client's Mobile Next API key (`set` reads it from stdin and tests it first), re-check it with its plan and minutes left, or remove it. See [Mobile app QA](/workflows/mobile-qa/). |
+| `kiroctl mobile status [--dir]` | Mobile testing readiness for a project: key, minutes left, each repo's contract, builds, accounts, devices still booked. |
+| `kiroctl mobile release [--dir]` | Release Mobile Next devices a crashed session left booked (they bill until released). |
+| `kiroctl qa secret get \| set --ref secret:<name>` | Read or store a test-account password in the OS secret store. `get` prints only the value; `set` reads stdin. |
+| `kiroctl qa account add \| list \| rm --dir <repo> [--role --username]` | Manage a repo's test accounts: `add` reads the password from stdin, stores it in the secret store, and writes a `secret:` reference to `qa-test-cases/test-credentials.md`. |
+| `node <pack>/bin/mobile-qa.js <subcommand>` | The helper the `qa` skill drives during a mobile test, not a `kiroctl` command: `status`, `preflight`, `upload`, `resolve-build`, `pick`, `teardown`, `screenshot`, `prune`, `account-add`, `account-cleanup`. Reads `MOBILENEXT_API_KEY`; `--json` for machine output. |
 | `kiroctl mission-report [--dir] [--transcript]` | Write a local, secret-scrubbed diagnostics bundle for auditing a mission run (no upload). |
 | `kiroctl telemetry status \| repair \| flush \| config \| project` | Adoption telemetry: identity + queue + connection health, run the self-repair now, manual flush, endpoint config, Mission Control project pin. |
 | `kiroctl sop status \| signout` | Mission Control sign-in (telemetry + SOP standards): show the connection state, or sign out. Sign **in** only in the app (`kiroctl gui` → "Sign in with Mission Control"). |
