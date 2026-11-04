@@ -124,8 +124,8 @@ for you (surface + interaction inventories → `qa-registry-merge.js` → the pr
 manifest). You can also run them by hand from the project root while iterating on
 the contract.
 
-**3. Arm the gates.** Gates are inert until an enable flag exists (the one exception is the always-on
-`telemetry-emit` hook) — globally at
+**3. Arm the gates.** Gates are inert until an enable flag exists (the exceptions are the always-on
+`telemetry-emit` hook and, wherever Mobile Next is configured, `mobile-guard` and `mobile-sweep`) — globally at
 `$KIRO_HOME/gates/<gate>.enabled` or per-project at `<project>/.kiro/gates/`. Arm
 one at a time:
 
@@ -234,6 +234,15 @@ closes that, end to end:
   design language against the authority (token/component conformance, **not** a pixel diff — content
   differences don't count). A mismatch is a **FAIL that drives the normal QA↔mission fix loop**: the
   build is restyled to the authority and re-QA'd, and the mission can't clear until it conforms.
+
+## Native mobile apps
+
+A repo whose `qa-contract.json` has a `mobile` block is tested on real iOS and
+Android devices through Mobile Next, not in a browser. The QA rules above still
+hold (staging only, two-gate verdicts, screenshot evidence). Setup, the device
+cost safeguards, and the limits are in [Mobile app QA](/workflows/mobile-qa/).
+A mobile run writes `mobile` on line 2 of the `.qa-active` sentinel, which
+marks it as a device run for the QA gates.
 
 ## Code-only work is a different lane
 

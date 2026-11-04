@@ -1,0 +1,287 @@
+---
+title: Mobile app QA
+description: Test a native iOS or Android app on real cloud devices with Mobile Next. Setup, how a mobile test works, the cost safeguards, and the limits.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## What it is
+
+When a repo is a native mobile app, the `qa` skill can test it on **real phones in
+the cloud** through [Mobile Next Cloud](https://app.mobilenext.ai). The agent
+installs your staging build on a booked device, taps through the app, reads each
+screen, and saves a screenshot as evidence. The same QA rules apply as for web
+work: staging only, two-gate verdicts (`WORKS` and `MATCHES INTENT`), and
+evidence for every claim. See [QA & Design](/workflows/qa-and-design/).
+
+It turns on per repo. A repo gets mobile testing when its `qa-contract.json` has a
+`mobile` block and its client has a Mobile Next key. Repos without one are tested
+as before.
+
+<Aside type="caution" title="Device time costs money">
+Mobile Next bills by the minute, and a booked device bills until it is released.
+The pack ships safeguards that cap and release devices for you (see
+[Safeguards and costs](#safeguards-and-costs)). They are always on wherever
+Mobile Next is configured.
+</Aside>
+
+## Setup
+
+Setup has four parts. Parts 1 and 2 are done once per client and once per repo.
+Parts 3 and 4 are repeated when you ship a new build or add a role.
+
+### 1. Add the Mobile Next key
+
+You need a Mobile Next account and an API key. The key belongs to a **kiroctl
+client**, so every project of that client shares it. It is kept in your OS
+secret store and never written to a file.
+
+- **In the app:** open the project, find the **Mobile testing** card, and choose
+  **Add key**. The key is tested before it is saved.
+- **From a terminal:** the key is read from stdin so it never lands in shell
+  history.
+
+  ```sh
+  printf '%s' "$MOBILENEXT_KEY" | kiroctl mobile key set --slug <client>
+  kiroctl mobile key test --slug <client>      # valid? plan? minutes left?
+  kiroctl mobile key remove --slug <client>    # turns mobile testing off
+  ```
+
+With a key saved, `kiroctl open` passes it to the session as
+`MOBILENEXT_API_KEY` and writes a `mobilenext` entry into the project's
+`.kiro/settings/mcp.json`. The entry points at the Mobile Next Cloud MCP server,
+`https://app.mobilenext.ai/mcp`, and sends the key as
+`Authorization: Bearer ${MOBILENEXT_API_KEY}`. A client with no key gets no
+entry, and `open` removes a stale one.
+
+<Aside type="note">
+Start a new session after adding or changing the key. Kiro reads its MCP
+configuration at session start.
+</Aside>
+
+<Aside type="caution" title="Plan limits">
+The Starter plan includes 100 minutes with a $0 overage cap. That cap is a hard
+stop: when the minutes run out, mobile testing stops until the plan renews. Use
+the Team plan for regular testing.
+</Aside>
+
+### 2. Set up each app repo
+
+In the project's **Mobile testing** card, each repo has its own row. Choose
+**Set up** (the app suggests it when it recognises an Expo or React Native repo)
+or **Add mobile app**. Saving writes a `mobile` block into that repo's
+`qa-contract.json`. One app per repo.
+
+| Setting | What to enter |
+| --- | --- |
+| Platforms | Android, iOS, or both. |
+| Staging app id | The bundle id of the staging build, such as `com.acme.app.staging`. |
+| Production app id | The production bundle id, so a production build can be recognised and refused. |
+| Build | Newest build from a branch, or one pinned build. |
+| Deep-link scheme | Optional. The URL scheme the app registers, such as `acme`. |
+| OTA channel | Optional. For Expo apps, the channel the app pulls updates from. |
+| Devices | One or more device kinds. The **first is the primary device**. |
+| Minute caps | Per app per run. Defaults: **15 scoped, 45 full**. |
+
+The device kinds are ranked lists of real models. The first one available wins.
+
+| Kind | Platform | Example models |
+| --- | --- | --- |
+| `flagship-android` | Android | Galaxy S26, Pixel 10 |
+| `budget-android` | Android | Galaxy A16, A15 |
+| `newest-iphone` | iOS | iPhone 17, 16 |
+| `oldest-iphone` | iOS | iPhone 11, 12 (the oldest that meets the build's minimum iOS) |
+
+If none of a kind's models is free, any device of that platform that meets the
+build's minimum OS is used, and the write-up says so. The list lives in the
+pack's `mobile-device-kinds.json`, so it changes without a code change.
+
+Every screen is checked on the primary device. Other devices run the secondary
+journeys and a layout sample.
+
+The card shows a **Needs attention** list when something would stop a run, such
+as a missing app id or no build for a listed platform.
+
+### 3. Get a build onto Mobile Next
+
+QA installs a build **stored in Mobile Next**. It does not build your app.
+
+- **Android needs an APK.** An AAB cannot be installed on a device.
+- **iOS takes an unsigned or ad-hoc IPA.** It is installed only when the device
+  is allocated, so a different iOS build means releasing the device and booking
+  it again.
+- **Upload from the app:** in a repo's form, choose **Upload build** for a
+  platform and give the path to the file. Tick **This build was made from this commit**
+  only if you are sure. Choose **Pin this build** to fix the contract to it.
+- **Upload from a terminal:**
+
+  ```sh
+  node <pack>/bin/mobile-qa.js upload --file app.apk --branch main \
+    --commit <sha> --confirmed-commit --repo . --pin
+  ```
+
+CI can upload builds the same way, so "newest build from a branch" always finds a
+fresh one.
+
+The commit is recorded **only when you confirm it**. Otherwise it is stored as
+`unknown`, and any check that a specific change is in the build reads
+**NOT VERIFIED**, because nothing shows the build contains it.
+
+### 4. Add test accounts
+
+The agent logs in with test accounts listed in
+`qa-test-cases/test-credentials.md`. That file holds roles, usernames and
+`secret:` references. **Passwords live in your secret store**, never in the file.
+
+- **In the app:** under a repo's **Test accounts**, enter a role, username and
+  password, then choose **Add account**.
+- **From a terminal:**
+
+  ```sh
+  printf '%s' "$PASSWORD" | kiroctl qa account add --dir <repo> --role admin --username qa-admin@example.com
+  kiroctl qa account list --dir <repo>       # shows whether each secret is stored
+  kiroctl qa account rm --dir <repo> --role admin
+  ```
+
+The agent fetches a password with `kiroctl qa secret get --ref <secret:...>`
+right before typing it. If a role has no account, the agent may create one
+through the app's own sign-up flow after the build passed the staging check. It
+removes or deactivates that account at the end and records what it did.
+
+### Check readiness
+
+```sh
+kiroctl mobile status --dir <project>
+```
+
+It lists one row per check: key, minutes left, each repo's contract, builds,
+accounts, and devices still booked. `kiroctl doctor` shows the same rows for
+projects that have a mobile repo or a key.
+
+## How a mobile test works
+
+Say "do QA" or "full QA" as usual. For each app in scope the agent follows the
+`mobile-qa.md` protocol, using the `mobile-qa.js` helper for everything
+that is not a device action.
+
+1. **Scope.** A scoped run tests the apps whose repo the change touched. A full
+   run tests **one app**. Each app has its own cap, build and devices.
+2. **Budget check.** `preflight` reads the Mobile Next balance. If it is
+   unreadable, empty, or below the run's cap, the run stops. It fails closed.
+3. **Find the build.** `resolve-build` picks the newest build on the branch or
+   the pinned one, and records its file id, bundle id, version, build number and
+   commit. It also checks that the build is staging (see below). A platform
+   with no ready build is reported as **NOT COVERED**, never skipped silently.
+4. **Pick and book devices.** The agent lists free devices, picks a model for
+   each device kind, and allocates it with the build's file id. The app installs
+   and launches.
+5. **Drive the app.** Before every action the agent reads the screen's
+   accessibility tree, then taps by the coordinates it just read. It never acts
+   on an earlier read of the screen.
+6. **Reach every screen by taps.** The agent may jump to a screen with a deep
+   link to inspect it quickly. A deep link does not prove a user can get there,
+   so each screen is also reached by taps from its real entry point. Both are
+   recorded separately as `inspected` and `reached`.
+7. **Capture evidence.** After each screen the agent saves a screenshot and
+   downloads it at once, because the link expires. Screenshots land at
+   `qa-screenshots/<run>/<screen>/<device>.png`. The agent opens each image and
+   reviews it section by section.
+8. **Log in and check permissions.** Passwords come from the secret store, and
+   login is never recorded. Every run tests the **allow** path for permission
+   prompts. Full runs also test **deny** by reinstalling and denying.
+9. **Release and write up.** `teardown` releases every device. The write-up is
+   blocked until it exits cleanly.
+
+Which screens are tested comes from the surface inventory. **Expo Router apps
+get their screen list automatically** from the route files, with each screen's
+groups and deep link. For other apps the agent builds the list from the code.
+Journeys are drafted from the inventory and the roles, and on a first full run
+the agent asks you to confirm them.
+
+The coverage receipt fails if any screen on the primary device was not both
+inspected and reached.
+
+### What the write-up contains
+
+For each app:
+
+- file id, bundle id, version, build number and commit (`unknown` is allowed as
+  a value);
+- the OTA update id, or that it is unknown;
+- devices used with the primary marked, and the minutes used against the cap;
+- screens that were **NOT COVERED**, each with a reason: cap reached, no
+  account, or no build for a supported platform;
+- any account the agent created and how it was cleaned up.
+
+The report gate refuses a write-up with no screenshot from this run, a device
+still booked, a created account with no cleanup, or no file id and commit in
+the body. It also refuses a report that describes devices or app screens under
+a `backend` or `ai-workload` marker.
+
+### Build provenance
+
+A check tied to a change can **PASS** only when that change is in the commit of
+the build that ran, or in the OTA update on top of it. If the commit is
+`unknown`, or an Expo app shows no update id, the check reads **NOT VERIFIED**.
+Exploratory checks may pass on any build, and the write-up names the build.
+
+## Safeguards and costs
+
+Two hooks, `mobile-guard` and `mobile-sweep`, are **always on** wherever Mobile
+Next is configured. This is a documented exception to "inert until armed", the
+same as `telemetry-emit`, because device minutes are metered and shared. They
+fail open on their own errors, with one exception: a booking that cannot be
+budget-checked is blocked. See [Gates](/capabilities/gates/).
+
+| Safeguard | What it does |
+| --- | --- |
+| Staging only | Blocks booking a build whose id is the production id, or that matches no app in any contract. An app that cannot prove staging by its ids needs the **This build targets staging** confirmation in the form. Without it the build is refused. |
+| Stored files only | During a run, allocation and install need a stored file id. Installs by upload id or URL are refused. |
+| Balance check | Blocks a booking when the balance is empty, below the run's cap, or unreadable. |
+| Minute caps | Default **15 min scoped, 45 min full** per app per run, **15 min** ad hoc. Time is counted per app, from each device's booked time. |
+| 80% warning | One time per app. The next Mobile Next call is blocked once with a warning to finish the screen, save evidence and release. Re-issue the call and it passes. |
+| 100% forced release | The hook releases that app's devices and blocks further calls. Untested screens become NOT COVERED with the reason "cap". |
+| Idle release | Outside a QA pass, devices idle for 10 minutes are released. During a pass the agent releases them itself. |
+| Crash cleanup | At session start, `mobile-sweep` releases devices a crashed session left booked, and lists any it could not. |
+
+Mobile Next releases an abandoned device on its own only after **120 minutes**.
+Until then it bills. If a session ends badly, release leftovers yourself:
+
+```sh
+kiroctl mobile release --dir <project>
+```
+
+The app shows a banner with a **Release leftover devices** button when it finds
+devices from an earlier run still booked.
+
+Screenshots are git-ignored and pruned after 14 days.
+
+## Limits
+
+- **Manual sign-off.** Farm devices have no controllable GPS, no pushed files,
+  and no controlled camera. The camera sees whatever is in front of the device,
+  location is the farm's, and the photo library may be empty. Checks that depend
+  on these are marked for manual sign-off and are never a PASS.
+- **Email the agent cannot read.** An invite or password reset email makes that
+  check **BLOCKED**. The write-up names the account that would be needed.
+- **iOS needs a build.** Without an IPA stored in Mobile Next, iOS is NOT
+  COVERED. It is never silently skipped.
+- **Android needs an APK**, not an AAB.
+- **One app per full run.** Two apps in a full run would share one cap and one
+  device set, so they are run separately.
+- **Production builds are refused.** There is no override.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| The Mobile testing card says **Mobile testing is off** | Add a Mobile Next key for the client, then start a new session. |
+| **Mobile Next connection failed** or the key is rejected | Run `kiroctl mobile key test --slug <client>`. Replace the key if it was revoked. |
+| The agent has no `mobilenext_*` tools | The `.kiro/settings/mcp.json` entry is written by `kiroctl open`. Reopen the project and start a new session. If `mcp.json` is tracked by git, add the entry by hand (`kiroctl mobile status` shows it). |
+| `staging check failed` | The build's id is a production id or matches no contract app. Fix the ids in the contract, or upload the staging build. |
+| The build is refused as unprovable | The staging and production ids are the same or one is missing. Tick **This build targets staging** in the app's form if it is true. |
+| `balance is empty` or below the cap | Top up or upgrade the plan. The Starter overage cap is a hard stop. |
+| An iOS screen is NOT COVERED with no build | Upload an unsigned or ad-hoc IPA to Mobile Next. |
+| Change checks read NOT VERIFIED | The build's commit is `unknown` or older than the change. Upload a fresh build and confirm its commit. |
+| Devices still booked after a crash | `kiroctl mobile release --dir <project>`. They bill until released. |
+| A test account shows **Missing** | The password is not in the secret store. Add the account again. |
