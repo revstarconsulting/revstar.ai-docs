@@ -61,8 +61,9 @@ configuration at session start.
 
 <Aside type="caution" title="Plan limits">
 The Starter plan includes 100 minutes with a $0 overage cap. That cap is a hard
-stop: when the minutes run out, mobile testing stops until the plan renews. Use
-the Team plan for regular testing.
+stop: when the minutes run out, mobile testing stops until the plan renews. Each
+device booking is billed for at least 5 minutes, so re-booking a device for one
+more screen is expensive. Use the Team plan for regular testing.
 </Aside>
 
 ### 2. Set up each app repo
@@ -238,7 +239,7 @@ budget-checked is blocked. See [Gates](/capabilities/gates/).
 | Staging only | Blocks booking a build whose id is the production id, or that matches no app in any contract. An app that cannot prove staging by its ids needs the **This build targets staging** confirmation in the form. Without it the build is refused. |
 | Stored files only | During a run, allocation and install need a stored file id. Installs by upload id or URL are refused. |
 | Balance check | Blocks a booking when the balance is empty, below the run's cap, or unreadable. |
-| Minute caps | Default **15 min scoped, 45 min full** per app per run, **15 min** ad hoc. Time is counted per app, from each device's booked time. |
+| Minute caps | Default **15 min scoped, 45 min full** per app per run, **15 min** ad hoc. Time is counted per app the way Mobile Next bills it: from each device's booking to its release, with a **5-minute minimum per booking**. A new booking that would pass the cap is refused before it is made. |
 | 80% warning | One time per app. The next Mobile Next call is blocked once with a warning to finish the screen, save evidence and release. Re-issue the call and it passes. |
 | 100% forced release | The hook releases that app's devices and blocks further calls. Untested screens become NOT COVERED with the reason "cap". |
 | Idle release | Outside a QA pass, devices idle for 10 minutes are released. During a pass the agent releases them itself. |
