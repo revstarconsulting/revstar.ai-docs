@@ -146,6 +146,12 @@ attempt to send:
   if it happened since your last update and within 7 days, because rejected events are dropped, not
   retried. Older rejections show as a note.
 
+- **Mission Control data:** what Mission Control actually has for you, from its read-back. For
+  example "Mission Control has your data on the dashboard up to 2026-11-03", plus anything received
+  but waiting for the next rollup. **Needs you** if Mission Control accepted an event more than two
+  hours ago but has no record of it. Until the read-back is live, this row is a note. Diagnostics
+  lists each event type.
+
 ### Download errors
 
 Settings → Mission Control → **Download errors** saves a text file to your
