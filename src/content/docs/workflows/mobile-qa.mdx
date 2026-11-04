@@ -175,10 +175,13 @@ that is not a device action.
    with no ready build is reported as **NOT COVERED**, never skipped silently.
 4. **Pick and book devices.** The agent lists free devices, picks a model for
    each device kind, and allocates it with the build's file id. The app installs
-   and launches.
+   and launches. Mobile Next can hand back a similar model (an S26 Ultra for an
+   S26), so the report names the model actually used.
 5. **Drive the app.** Before every action the agent reads the screen's
    accessibility tree, then taps by the coordinates it just read. It never acts
-   on an earlier read of the screen.
+   on an earlier read of the screen. The tree can lag one action behind, so the
+   agent re-reads until it shows the change it made, and trusts the screenshot
+   when the two disagree.
 6. **Reach every screen by taps.** The agent may jump to a screen with a deep
    link to inspect it quickly. A deep link does not prove a user can get there,
    so each screen is also reached by taps from its real entry point. Both are
