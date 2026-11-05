@@ -35,7 +35,7 @@ that fits, most often `dev`.
 | Skill | When it fires |
 | --- | --- |
 | `mission` | Setting, updating, or clearing the standing macro-goal for multi-phase work. |
-| `qa` | Running the QA protocol against staging — scoped, full, or "today". |
+| `qa` | Running the QA protocol against staging. Scoped by default — the change plus every connected page, endpoint and job, across the project's repos; full only when you ask for it; or "today". |
 | `design` | Building or restyling any UI surface — builds to the project's **design authority** (the plan's pinned `## Design Authority`: a customer mockup, or the committed brand guide) and enforces the full component state set, instead of inventing a second design language. |
 | `brand-guide` | Captures a web app's existing design language into a committed, reviewed `.kiro/context/brand-guide.md` (tokens + component catalogue w/ states + layout + icon/motion + screenshots + known inconsistencies), generated from the codebase design system crossed with the rendered app. The design source-of-truth the `design` skill builds to and `qa` enforces. First run on a UI project prompts to generate it; re-run on a redesign. |
 | `grill-me` | Adversarial interrogation of a plan or design until every gap is resolved. Forces the plan into **phases → features** and grills **two dimensions, both deep** — the cohesive whole and **every** feature — so a big plan gets the same rigor per decision as a single feature; keeps an advisory **Grill Coverage** checklist (grilled / deferred / still-open) and asks every question in plain English. On an ADO-tracked project, an unanswered question becomes a tracked request — a comment on the related item, or a new "Information request: …" item — assigned to the project's PM. |

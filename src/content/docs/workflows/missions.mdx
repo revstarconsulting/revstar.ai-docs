@@ -98,7 +98,10 @@ marked:
   command output), or
 - **GAP**, with what's missing.
 
-A mission cannot clear while any ledger line reads GAP. This is what stops a
+A mission cannot clear while any ledger line reads GAP. Nor can it clear while the
+[QA fan-out gate](/capabilities/gates/#the-qa-fan-out-gate) finds a page, endpoint or job
+the mission's changes reach that wasn't tested since its code last changed (or validly
+waived). This is what stops a
 mission from being marked done on narrative confidence alone — every claim
 needs a cited artifact.
 

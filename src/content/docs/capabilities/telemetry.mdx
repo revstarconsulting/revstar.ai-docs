@@ -23,7 +23,7 @@ Eight event types, nothing else:
 | `mission_cleared` | A mission was cleared from its completion audit (once). `hours_autonomous` is measured from the run's active time; `actual_hours` is sent only when you give it at clear time. A bare clear from any other state is reported as `mission_failed` (abandoned). |
 | `mission_failed` | A mission ended without clearing (once). |
 | `skill_run` | A skill was invoked. |
-| `qa_result` | A full QA run produced a result, with `bugs_found` (cases failing this run) and `bugs_fixed` (cases that failed earlier in the mission and pass now). |
+| `qa_result` | A QA run produced a result: every scoped run (when it ends) and every full run. Carries `passed`, the per-mission `attempt_number`, `bugs_found` (cases or targets failing this run) and `bugs_fixed` (ones that failed earlier in the mission and pass now). |
 | `preflight` | A preflight check ran. |
 | `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`): hours + a reason from `mc-outage \| no-browser \| other`. |
 | `client_heartbeat` | RevStar.ai is installed, signed in and in use on this machine, so you appear in Mission Control even on a day with no other events. Sent at most **once per machine per day** (sent from 0.6.8; 0.6.5–0.6.7 recorded it but held it locally), from the first of: a `dev`/`coder`/`scout` session starting (`trigger: session`), the app opening (`app`), or an install / `kiroctl update` (`install`). Carries the channel, platform, Kiro version, and two yes/no flags: the pack is current and the default agent is a RevStar.ai agent. No paths, repo names or project. |
@@ -146,6 +146,7 @@ attempt to send:
   if it happened since your last update and within 7 days, because rejected events are dropped, not
   retried. Older rejections show as a note.
 
+- **QA fan-out gate:** shown only when the mission-close [fan-out gate](/capabilities/gates/#the-qa-fan-out-gate) failed open in the last 7 days (missions that cleared without the check), with the reasons.
 - **Mission Control data:** what Mission Control actually has for you, from its read-back. For
   example "Mission Control has your data on the dashboard up to 2026-11-03", plus anything received
   but waiting for the next rollup. **Needs you** if Mission Control accepted an event more than two
