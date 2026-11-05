@@ -185,6 +185,11 @@ tests every connected part of the code:
   chain that explains why it's in (`page /teachers ← TeacherList ← lookupTeacher
   (changed)`). For a connected page the test drives that exact path and re-runs the
   page's existing cases; a page load alone doesn't count.
+- **Wrappers count:** a component in a file-router layout (Expo Router `_layout`, Next.js
+  `layout`) reaches every screen or page under that layout, and a script a plain HTML page
+  loads with `<script src>` reaches that page. Code that reaches no entry point at all
+  (build config, dead code, DI wiring) is listed as an **unclassified** target, so it still
+  gets a look instead of silently dropping out.
 
 The agent records each result through one script, which also notes the code each test
 ran against:
