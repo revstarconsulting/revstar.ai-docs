@@ -177,7 +177,10 @@ canonical set), and — when the surface gate is armed — a surface the mission
 from the denominator and reported separately, never silently dropped.
 
 The **`qa-report-gate`** blocks a written QA report that's missing intent
-verdicts, render evidence, or that `COVERAGE-OK` line. And because Kiro's stop
+verdicts, render evidence, or the receipt's result line. A full run that ended
+below the floor can still be written if it carries the receipt's own
+`COVERAGE-FAIL: …` line with its reasons, so the honest result is kept and can't
+be read as complete. And because Kiro's stop
 hook can't hard-block, **`ci/qa-gate.sh`** gives the same teeth a second home: it
 recomputes the receipt and exits non-zero on `COVERAGE-FAIL`, so a CI job or a git
 pre-push hook stops a change that would ship with orphaned cases.
