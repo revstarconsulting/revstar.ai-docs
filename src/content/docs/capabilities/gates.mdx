@@ -45,9 +45,9 @@ before assuming the rule doesn't apply.
 | --- | --- | --- | --- |
 | `mission-inject` | Session start | inject | Re-injects the active mission so it survives context compaction. |
 | `mission-turn-recorder` | Turn end | inject | Writes the turn receipt the `/goal` loop reads; a cleared mission emits a terminal stop. |
-| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, or gate flags, and un-audited mission clears. |
+| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. |
 | `qa-render-gate` | fetch | block | Forces a real-browser render during QA instead of accepting a fetch as a visual check. A `mobile` run is not exempt: web pages still need the browser. |
-| `qa-report-gate` | write | block | Refuses a QA report missing `WORKS` + `MATCHES INTENT` verdicts, render evidence, or a coverage receipt. For a run marked `mobile`, also refuses a report with no fresh device screenshot, a device still booked, a created test account with no cleanup, or no build file id and commit. |
+| `qa-report-gate` | write | block | Refuses a QA report missing `WORKS` + `MATCHES INTENT` verdicts (each with `method: live\|inspection\|code`), render evidence, a real coverage receipt file (full runs), or the adversarial-pass receipt (runs with change items); and any "PASS with note". For a run marked `mobile`, also refuses a report with no fresh device screenshot, a device still booked, a created test account with no cleanup, or no build file id and commit. |
 | `git-protect-gate` | shell | block | Refuses direct commit/merge/push to protected branches and `--no-verify`; allows `gh pr`. |
 | `ado-receipt-gate` | shell | block | Refuses opening a PR (`gh pr create` / `glab mr create` / `az repos pr create`) for ADO-bound work — a `feat/<id>-*` branch — until the item's status / assignee / comment update is recorded as a receipt. Disarmed by default; fails open (any uncertainty or error allows the PR); fires only on ADO-bound branches. |
 | `reuse-before-create-gate` | new-file write | soft | Warns once about a duplicate of an existing owner, then relents. |
@@ -100,6 +100,31 @@ kiroctl sop bypass --clear
 ```
 
 The gate only runs in the pack's agents (`dev`, `coder`, `scout`).
+
+## The QA fan-out gate
+
+Not a hook: a check built into `mission-state.js --clear` itself, so it runs **on every
+machine without being armed** (like telemetry and the sign-in, a deliberate exception to
+"inert until armed"). On a mission's clean clear it re-works-out everything the mission's
+changes reach, and **refuses the clear** unless:
+
+- QA ran at all, if the changes reach any page, endpoint or job;
+- every target was tested and passed **since its code last changed** — editing code on a
+  target's chain after testing it means re-testing it;
+- every waived target names a tested stand-in of the same kind that reaches the same
+  changed code;
+- every changed item has a tested target of each kind it reaches, and at least the
+  minimum sample was tested.
+
+The refusal lists what's missing and the exact commands to fix it. A change that reaches
+nothing (docs, tests) needs no QA. Missions that started before the update are exempt. If
+the check itself can't run (no git, or it takes over 2 minutes), it **fails open**: the
+mission clears with a note, and the app's Mission Control panel shows how often that
+happened in the last 7 days.
+
+**Off-switch (a person only):** create `qa-fanout-gate.disabled` in `~/.kiro/gates/` (or
+the project's `.kiro/gates/`) **before** starting the mission. A flag created during a
+mission is ignored, and agents can't create it.
 
 ## Verifying gates
 

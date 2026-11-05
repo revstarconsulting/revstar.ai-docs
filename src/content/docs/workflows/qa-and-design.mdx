@@ -11,9 +11,12 @@ Say the trigger phrase and the `qa` skill runs the matching scope:
 
 | Phrase | Scope |
 | --- | --- |
-| "do QA" | Scoped to the latest change |
-| "full QA" | Complete audit of the product surface |
-| "QA today" | Everything changed today |
+| "do QA" | **Scoped:** the change and every connected part of the code (callers, and the pages, endpoints and jobs that reach it) |
+| "full QA" | Complete audit of the product surface. **Runs only when you ask for it.** |
+| "QA today" | Scoped, to everything changed today |
+
+Everything else is scoped too: automatic runs after a change, the end of every mission
+phase, and the run before a mission clears. Nothing switches to full on its own.
 
 ## The three non-negotiables
 
@@ -163,6 +166,67 @@ you're typing). On **Windows** and desktop Linux it renders headed-visible.
 Headless is **not** a downgrade — it's the same engine with identical layout,
 overlay and contrast, and the screenshots are the proof regardless.
 </Aside>
+
+## Scoped runs: the change and everything connected to it
+
+A scoped run doesn't guess what the change affected. It works it out from git and
+tests every connected part of the code:
+
+- **What changed:** everything since your branch left the staging branch (or the
+  repo's default branch), plus uncommitted and new files. Inside a mission it's
+  measured from the mission's start when that's older, so work committed straight
+  onto staging still counts.
+- **What's connected:** followed through the imports all the way out, in JS/TS/JSX,
+  Python, Go and C#, and across the project's repos — a changed API endpoint pulls in
+  the front-end code that calls it, in whichever repo it lives. A project repo that
+  isn't cloned is reported as *callers unknown*, never "no callers".
+- **What gets tested:** the places a user or system actually reaches — pages and
+  routes, API endpoints, app screens, background jobs, webhooks, CLIs — each with the
+  chain that explains why it's in (`page /teachers ← TeacherList ← lookupTeacher
+  (changed)`). For a connected page the test drives that exact path and re-runs the
+  page's existing cases; a page load alone doesn't count.
+- **Wrappers count:** a component in a file-router layout (Expo Router `_layout`, Next.js
+  `layout`) reaches every screen or page under that layout, and a script a plain HTML page
+  loads with `<script src>` reaches that page. Code that reaches no entry point at all
+  (build config, dead code, DI wiring) is listed as an **unclassified** target, so it still
+  gets a look instead of silently dropping out.
+
+The agent records each result through one script, which also notes the code each test
+ran against:
+
+```sh
+node <pack>/bin/qa-scoped-record.js begin                 # lists the targets; prints a runId
+node <pack>/bin/qa-scoped-record.js pass --run <runId> --target "<id>" --works yes --intent yes --method live --evidence <screenshot>
+node <pack>/bin/qa-scoped-record.js end --run <runId>     # sends the run's QA result to Mission Control
+node <pack>/bin/qa-scoped-record.js status                # what's tested, waived, or stale
+```
+
+When a change reaches **more than 25** targets, the run doesn't stop to ask. The agent
+tests at least a third of them (10 minimum; all of them when there are 10 or fewer),
+including a tested target of every kind each changed item reaches, and waives the rest
+— each waiver names a tested **stand-in** of the same kind that reaches the same changed
+code. Mobile screens are tested together in as few device bookings as possible, and the
+agent never raises the minute cap.
+
+**Before a mission can clear**, the [fan-out gate](/capabilities/gates/#the-qa-fan-out-gate)
+checks all of this against the mission's whole diff.
+
+## What a QA report must contain
+
+On top of the two verdicts, the `qa-report-gate` now refuses a report when:
+
+- a verdict has no **`method: live | inspection | code`**, or a PASS was reached only by
+  reading code or inspecting it. Those are provisional: exercise it live, or, only when
+  staging genuinely can't reach it, tag `[cannot-exercise-on-staging]` with what staging
+  lacks (it then counts as waived, not tested);
+- a line says **PASS and describes a problem** ("PASS but the label is cut off"). An issue
+  you can describe is a FAIL;
+- a run with change items doesn't cite its **adversarial-pass receipt**: the agent keeps
+  trying to break the *changed* items until two rounds in a row find nothing new
+  (`qa-adversarial-receipt.js record --round <n> --findings <k>`);
+- a full run cites no **coverage receipt file**, or one made with loosened thresholds.
+
+These checks apply to QA runs started after the update; earlier runs keep the old rules.
 
 ## Full-run coverage
 
