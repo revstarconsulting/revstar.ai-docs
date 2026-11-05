@@ -203,7 +203,11 @@ Journeys are drafted from the inventory and the roles, and on a first full run
 the agent asks you to confirm them.
 
 The coverage receipt fails if any screen on the primary device was not both
-inspected and reached.
+inspected and reached. In a project with several repos, the registry, inventory
+and coverage ledger live in the repo under test (`<repo>/qa-test-cases/`). A
+screen nothing links to cannot be reached by taps, so it is reported as a dead
+or hidden route, and the receipt still counts it. A full run that ends below the
+floor reports COVERAGE-FAIL as it is.
 
 ### What the write-up contains
 
