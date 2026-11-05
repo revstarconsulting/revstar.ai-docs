@@ -11,9 +11,12 @@ Say the trigger phrase and the `qa` skill runs the matching scope:
 
 | Phrase | Scope |
 | --- | --- |
-| "do QA" | Scoped to the latest change |
-| "full QA" | Complete audit of the product surface |
-| "QA today" | Everything changed today |
+| "do QA" | **Scoped:** the change and every connected part of the code (callers, and the pages, endpoints and jobs that reach it) |
+| "full QA" | Complete audit of the product surface. **Runs only when you ask for it.** |
+| "QA today" | Scoped, to everything changed today |
+
+Everything else is scoped too: automatic runs after a change, the end of every mission
+phase, and the run before a mission clears. Nothing switches to full on its own.
 
 ## The three non-negotiables
 
