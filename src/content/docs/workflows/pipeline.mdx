@@ -70,7 +70,7 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
    required `kiro-estimate` block — see [Estimation output contract](#estimation-output-contract).
 
 4. **Run the mission** — set the plan as the mission and drive it with `/goal`.
-   It builds phase by phase and **automatically runs the `qa` skill** on every
+   It builds phase by phase and **automatically runs the `qa` skill, scoped with its fan-out,** on every
    phase that changes product surface, so verification isn't a separate step you
    have to remember. The mission clears only when the acceptance ledger is all
    **MET**.

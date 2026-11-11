@@ -12,11 +12,48 @@ Say the trigger phrase and the `qa` skill runs the matching scope:
 | Phrase | Scope |
 | --- | --- |
 | "do QA" | **Scoped:** the change and every connected part of the code (callers, and the pages, endpoints and jobs that reach it) |
-| "full QA" | Complete audit of the product surface. **Runs only when you ask for it.** |
+| "full QA" | Complete audit of the product surface. **Runs only when you ask for it, or when the plan says so** (see below). |
 | "QA today" | Scoped, to everything changed today |
 
 Everything else is scoped too: automatic runs after a change, the end of every mission
 phase, and the run before a mission clears. Nothing switches to full on its own.
+
+### Full QA from the plan
+
+The other way to get a full run is to agree on it while planning. `grill-me` asks once per
+plan whether the plan needs a full regression. It checks five triggers itself and recommends
+full when any one applies:
+
+1. a go-live or a major release;
+2. a change to sign-in, roles or permissions, payments or billing, the data model or a
+   migration, or app-wide navigation;
+3. a framework, dependency, build or infrastructure change, whose reach the code
+   connections don't show;
+4. many features at once: more than a third of the plan's features, or more than five;
+5. no full regression has ever run on the project.
+
+It shows the evidence, recommends, and you decide. `pm-grill-me` asks a product-worded
+version that covers triggers 1, 2 and 4. The answer goes into the plan:
+
+```
+## QA Scope
+scope: full
+reason: first production launch
+triggers: 1
+```
+
+- **The scope is frozen when the mission starts.** `mission-state.js --init` reads the section
+  once, and every session shows a `QA scope: …` line. Editing the plan mid-build changes
+  nothing; if you change your mind, say "full QA". A section it can't read falls back to
+  scoped, and the fallback is shown every session.
+- **The full run is the mission's last QA step,** after the last code change. It covers the
+  whole project, with one run per mobile app. It also records the fan-out results, so
+  connected items it didn't reach still get their scoped test.
+- **The mission can't clear without the full run.** For a full mission, `--clear` needs a
+  full-run coverage receipt written after the last code change. COVERAGE-FAIL counts too:
+  it is printed and kept in the closing summary instead of blocking the mission.
+- **The estimate counts it.** A full run is its own line in the estimate: per run, per app,
+  plus review time.
 
 ## The three non-negotiables
 
