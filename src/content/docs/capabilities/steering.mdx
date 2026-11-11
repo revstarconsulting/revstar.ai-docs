@@ -37,7 +37,9 @@ scoped to file writes and does not restrict parallel *sub-agents*.
 
 When to invoke `design`, `qa`, and `mission` — automatically after front-end
 or functionality changes, and at the end of any mission phase that changed
-product surface. The three QA non-negotiables: staging never production,
+product surface. Those QA runs are always scoped (the change plus everything
+connected to it); full QA runs only when you ask for it or the grilled plan
+declares it. The three QA non-negotiables: staging never production,
 every page rendered in a real browser, and two-gate verdicts (`WORKS` +
 `MATCHES INTENT`). The reversibility rule for mid-mission forks: two-way doors
 get decided and logged, only genuine one-way doors — money, auth, destructive
