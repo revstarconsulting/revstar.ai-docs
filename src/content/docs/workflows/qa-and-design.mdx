@@ -257,7 +257,8 @@ node <pack>/bin/qa-scoped-record.js status                # what's tested, waive
 ```
 
 The record lives in `.qa-gate/scoped/` as an append-only log, so writing a verdict stays
-fast on long missions. Records from earlier versions are still read.
+fast on long missions. Each write takes a short lock, so parallel QA sub-agents can record
+at the same time without losing verdicts. Records from earlier versions are still read.
 
 When a change reaches **more than 25** targets, the run doesn't stop to ask. The agent
 tests at least a third of them (10 minimum; all of them when there are 10 or fewer),
