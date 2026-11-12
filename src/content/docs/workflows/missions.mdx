@@ -37,6 +37,7 @@ loops, with no error. Turn it on once:
 kiro-cli settings chat.enableWorkflows true
 ```
 
+Type `true` without quotes: a quoted `"true"` is saved as text, which kiro-cli ignores.
 Restart the session and check that `/experiment` lists **Workflows** as on.
 `kiroctl doctor` shows a `goal-loop` warning while it's off. If your account isn't
 offered Workflows, use `mission-acp-driver.js` (below) instead.
