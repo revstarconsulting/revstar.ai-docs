@@ -24,7 +24,7 @@ there is no `link`, `unlink`, or `install @latest`.
 | `kiroctl update [--check] [--registry <path>]` | Update kiroctl itself; `--check` reports without applying. |
 | `kiroctl version` | Print the installed `kiroctl` version. |
 | `kiroctl client set-ado --slug <s> [--ado-org --ado-project --ado-pm]` | Set the client's Azure DevOps org URL, default project, and PM (injected on open). |
-| `kiroctl project set-env --dir [--base-url --env --branch --backend-query]` | Capture the project's staging/dev QA target + access; scaffolds `qa-contract.json`. |
+| `kiroctl project set-env --dir [--base-url --env --branch --backend-query]` | Capture the project's staging/dev QA target + access; scaffolds `qa-contract.json`. `--branch` is the Target branch: the branch work merges into, which scoped QA diffs against. |
 | `kiroctl mobile key set \| test \| remove --slug <client>` | Mobile app QA: store the client's Mobile Next API key (`set` reads it from stdin and tests it first), re-check it with its plan and minutes left, or remove it. See [Mobile app QA](/workflows/mobile-qa/). |
 | `kiroctl mobile status [--dir]` | Mobile testing readiness for a project: key, minutes left, each repo's contract, builds, accounts, devices still booked. |
 | `kiroctl mobile release [--dir]` | Release Mobile Next devices a crashed session left booked (they bill until released). |
