@@ -41,6 +41,15 @@ wedged turn (e.g. a large parallel-write batch that never returns, ADO 145914).
 Relaunches reset the session context but the mission and task list persist, and a
 run that keeps hanging is capped so it terminates instead of looping forever.
 
+## The base branch
+
+`--init --base-branch <branch>` records, per repo, the branch the mission's work merges
+into. `build-plan` and `fix-bugs` pass it. Scoped QA and the fan-out gate measure the
+mission's changes against it the way a pull request does, and `--init` prints a
+`base <repo>: …` line for each repo so a wrong branch shows up at minute one. Without
+the flag each repo uses the project's Target branch, then the repo contract, then the
+closest common branch. See [which branch it measures against](/workflows/qa-and-design/#scoped-runs-the-change-and-everything-connected-to-it).
+
 ## The preflight gate
 
 Setting a mission runs a **preflight** that checks the approved process is in

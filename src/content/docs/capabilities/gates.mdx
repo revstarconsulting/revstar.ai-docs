@@ -116,6 +116,10 @@ changes reach, and **refuses the clear** unless:
 - every changed item has a tested target of each kind it reaches, and at least the
   minimum sample was tested.
 
+"The mission's changes" means each repo's diff against the base branch frozen at
+`--init` (see [which branch it measures against](/workflows/qa-and-design/#scoped-runs-the-change-and-everything-connected-to-it)),
+the same diff a pull request shows. Missions started before 0.8.4 work the branch out on each run.
+
 The refusal lists what's missing and the exact commands to fix it. A change that reaches
 nothing (docs, tests) needs no QA. Missions that started before the update are exempt. If
 the check itself can't run (no git, or it takes over 2 minutes), it **fails open**: the

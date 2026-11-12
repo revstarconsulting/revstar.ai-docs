@@ -209,10 +209,9 @@ overlay and contrast, and the screenshots are the proof regardless.
 A scoped run doesn't guess what the change affected. It works it out from git and
 tests every connected part of the code:
 
-- **What changed:** everything since your branch left the staging branch (or the
-  repo's default branch), plus uncommitted and new files. Inside a mission it's
-  measured from the mission's start when that's older, so work committed straight
-  onto staging still counts.
+- **What changed:** the same diff a pull request shows. That is everything since your
+  branch left the branch it merges into, plus uncommitted and new files. On the
+  integration branch itself, it's everything since the mission started.
 - **What's connected:** followed through the imports all the way out, in JS/TS/JSX,
   Python, Go and C#, and across the project's repos — a changed API endpoint pulls in
   the front-end code that calls it, in whichever repo it lives. A project repo that
@@ -228,6 +227,25 @@ tests every connected part of the code:
   (build config, dead code, DI wiring) is listed as an **unclassified** target, so it still
   gets a look instead of silently dropping out.
 
+**Which branch it measures against.** The first of these that is set and exists wins:
+
+1. The mission's base branch: `build-plan` and `fix-bugs` pass it to `mission-state.js --init --base-branch <branch>`. It is fixed per repo for the whole mission.
+2. The project's **Target branch**: the field in the app's QA environment card, or `kiroctl project set-env --dir <p> --branch dev`.
+3. The repo's `qa-contract.json` `integrationBranch`.
+4. Otherwise the closest of `staging`, `dev`, `develop`, the remote's default branch, `main` and `master`.
+
+Set the Target branch on any project that works on `dev` but still has an old `staging`
+branch; otherwise the guess can pick stale `staging` and QA hundreds of changes that
+aren't yours. The merge base is worked out again on every run, so merging the latest
+`dev` into your branch mid-mission doesn't add its changes to QA. If the merge base is
+more than 50 commits behind the mission start, QA uses the mission start instead.
+
+Every run prints one line per repo so you can check it:
+
+```text
+base web: dev via mission -> 3f2a91c04 (merge-base), HEAD is 4 commits ahead
+```
+
 The agent records each result through one script, which also notes the code each test
 ran against:
 
@@ -237,6 +255,9 @@ node <pack>/bin/qa-scoped-record.js pass --run <runId> --target "<id>" --works y
 node <pack>/bin/qa-scoped-record.js end --run <runId>     # sends the run's QA result to Mission Control
 node <pack>/bin/qa-scoped-record.js status                # what's tested, waived, or stale
 ```
+
+The record lives in `.qa-gate/scoped/` as an append-only log, so writing a verdict stays
+fast on long missions. Records from earlier versions are still read.
 
 When a change reaches **more than 25** targets, the run doesn't stop to ask. The agent
 tests at least a third of them (10 minimum; all of them when there are 10 or fewer),
