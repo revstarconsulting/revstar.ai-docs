@@ -28,6 +28,20 @@ a direct edit of mission state and refuses clearing an unaudited mission.
 
 ## The `/goal` loop
 
+:::caution[Turn on Workflows first]
+`/goal` is part of kiro-cli's Workflows feature, which is **off by default**. With it
+off, `/goal <task>` is sent as an ordinary prompt: the agent works on it once and nothing
+loops, with no error. Turn it on once:
+
+```sh
+kiro-cli settings chat.enableWorkflows true
+```
+
+Restart the session and check that `/experiment` lists **Workflows** as on.
+`kiroctl doctor` shows a `goal-loop` warning while it's off. If your account isn't
+offered Workflows, use `mission-acp-driver.js` (below) instead.
+:::
+
 Kiro's native `/goal` command drives a mission autonomously: it keeps
 re-prompting the session until every success criterion is met, rather than
 stopping after one pass. Point it at a plan and it will keep working — building,
