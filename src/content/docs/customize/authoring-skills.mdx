@@ -70,5 +70,11 @@ makes it a tracked capability — happens through `kiroctl onboard`.
   two skills.
 - **The trigger is the whole point.** A skill with a vague `description` never
   loads. Write it as "Use when the user asks X, says 'Y', or is doing Z."
+- **The frontmatter must load, or the skill silently disappears.** Kiro drops a
+  skill whose `description` is over 1024 characters, or whose frontmatter isn't
+  valid YAML. The common YAML trap is an unquoted `: ` (colon and space) or ` #`
+  in the description. Wrap the description in single quotes and double any `'`
+  inside it. `kiroctl doctor` fails the `skill frontmatter` row and names the
+  skill when either problem is present.
 - **Match the house style.** New skills should read like the ones already
   installed in the project.
