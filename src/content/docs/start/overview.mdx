@@ -17,10 +17,13 @@ governed capability set.
 
 ## Four governing ideas
 
-**Inert until armed.** Installing changes nothing by itself. Gates — the
-enforcement layer — exist as scripts on disk but refuse nothing until you
-create their flag file. A pack that starts blocking the moment it lands teaches
-people to rip it out; this one earns trust one armed gate at a time.
+**Inert until armed.** Installing doesn't change what your tools are allowed to do.
+Gates — the enforcement layer — exist as scripts on disk but refuse nothing until you
+create their flag file. The exceptions are four safe hooks that only inject text or
+record receipts (the installer arms them, and a `.disabled` file turns one off for good),
+and the always-on hooks: telemetry and Mission Control sign-in, the Mobile Next
+safeguards, and the mission emergency brake. A pack that starts blocking the moment it
+lands teaches people to rip it out; this one earns trust one armed gate at a time.
 
 **Opus orchestrates, Sonnet builds.** Three agents, three roles:
 

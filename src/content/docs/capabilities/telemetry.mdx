@@ -20,7 +20,7 @@ Eight event types, nothing else:
 | Event | Meaning |
 | --- | --- |
 | `mission_started` | A mission was set (once per mission — re-running `--init` does not re-send it). Carries `estimated_conventional_hours` when the plan's estimate has a `conventional:` value. |
-| `mission_cleared` | A mission was cleared from its completion audit (once). `hours_autonomous` is measured from the run's active time; `actual_hours` is sent only when you give it at clear time. A bare clear from any other state is reported as `mission_failed` (abandoned). |
+| `mission_cleared` | A mission was cleared from its completion audit (once). `hours_autonomous` is the measured agent working time (see [Autonomous hours](#autonomous-hours)) and `hours_source` says where it came from; `actual_hours` is sent only when you give it at clear time. A bare clear from any other state is reported as `mission_failed` (abandoned). |
 | `mission_failed` | A mission ended without clearing (once). |
 | `skill_run` | A skill was invoked. |
 | `qa_result` | A QA run produced a result: every scoped run (when it ends) and every full run. Carries `passed`, the per-mission `attempt_number`, `bugs_found` (cases or targets failing this run) and `bugs_fixed` (ones that failed earlier in the mission and pass now). |
@@ -96,22 +96,49 @@ projects:
 - **several** match, or the repo belongs to a project you're not on → the RevStar.ai
   app asks once, *"Which Mission Control project is this repo for?"*, in a banner
   and under Settings → Mission Control;
-- **none** match → events omit `mc_project_id` and carry the repo only;
-- you're on **one** project and Mission Control won't say which project owns the
-  repo (most developers) → that project is pinned, as the best available guess.
+- **none** match and you're on **several** projects → events omit `mc_project_id` and
+  carry the repo only;
+- **no project claims the repo** and you're on **one** project (most developers) → that
+  project is pinned. Diagnostics shows it as *auto: your only project*. Before 0.9.0
+  these developers were never pinned and their events landed on "All-RevStar";
+- **the repo is under `revstarconsulting/`** and no project claims it → it is **not**
+  pinned. A single-project developer's internal RevStar tooling work isn't their
+  customer's, so it stays on "All-RevStar";
+- **Mission Control didn't answer** (a timeout or a server error) → any existing pin is
+  kept and nothing is newly pinned, so an outage can't pin the wrong project. A refusal
+  (401/403) still pins the only project, as before.
+
+**Finding the repo.** `git` gets 8 seconds (it was 2). If there's no `origin` remote it
+uses the first remote. A successful answer is saved per folder for 24 hours, so only the
+first event in a folder each day pays for a slow `git` call. A failure is never saved, so
+a slow call is tried again. The saved file is written atomically, so two hooks firing at
+once can't leave it half-written.
+
+**Project folders that aren't repos.** `kiroctl open` starts a multi-repo project's
+session in the project folder, which usually isn't a git repo, so those events had no
+repo. Now the folder takes its project from its repos: when every repo `kiroctl` has
+mapped for it resolves to **one** Mission Control project, the folder is pinned to that
+project (*auto: every repo mapped here belongs to it*). If they resolve to different
+projects, or none do, the one-time picker asks for the folder. Events from the folder
+still send an empty `repo`; [`project_status`](#project_status-and-hours_source) says why.
 
 The pin is saved per folder in `.kiro/telemetry-project.json` (committable, so a
 team answers once), in the folder where your Kiro sessions start: the project's
 repo when it has one, otherwise the project folder.
 
-**Automatic pins are re-checked once a day.** If Mission Control later adds you
-to the repo's real project, the pin moves, or the app asks you to pick. Pins you
+**Automatic pins are re-checked once a day.** That covers pins from *your only
+project* and from *your repos*. If Mission Control later adds you to the repo's real
+project, the pin moves, or the app asks you to pick. A folder pin follows its repos: when
+their projects change, it is re-derived or turned into the picker question. Pins you
 chose yourself are never changed.
 
 **Wrong project?** Run [Diagnostics](#diagnostics-report) and look at **Project
 attribution**. For each project and repo it shows which Mission Control project
 the events go to, why (picked by you, or automatic), whether that matches the
-repo in Mission Control, and what was recently reported. To fix a pin:
+repo in Mission Control, and what was recently reported. Each folder also shows its
+status (pinned, no match, no repo, and so on) and, when `git` found no repo, **why**:
+`git` isn't on the PATH, it timed out, the repo has no remote, or the folder isn't a
+repo. To fix a pin:
 
 - `kiroctl telemetry project --reset --dir <repo folder>` drops it and looks it up
   again (the app asks if several projects fit);
@@ -121,6 +148,66 @@ If your real project isn't in the **your projects** list, Mission Control doesn'
 have you on it yet. Ask the Mission Control team to add you first, otherwise
 RevStar.ai can't attribute work to it.
 
+## Autonomous hours
+
+`hours_autonomous` on a `mission_cleared` event is the **agent's working time** on the
+mission, measured by the `mission-turn-recorder` hook (which the installer now arms by
+default; see [the four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default)).
+
+- Each turn counts from the moment your prompt is submitted to the moment the turn ends.
+  The running turn counts up to the clear.
+- Time between turns (you reading or typing) is not counted. Nothing is counted before
+  the mission starts or while no mission is active.
+- A single turn over 4 hours is treated as hung and counted as 4. A turn that ends with no
+  recorded start counts from the previous turn's end, with the same cap.
+- Every session working the mission adds to one receipt keyed by the mission id, so
+  resumes and relaunches add up, and two sessions working at once don't double-count.
+
+See the number so far with `node <pack>/bin/mission-state.js --hours`.
+
+**Measured wins.** If there is a measurement, that is what is sent; a typed
+`--hours-autonomous` is used only when nothing was measured (the recorder is off or
+opted out). `--actual-hours`, your own total time, is sent as typed. The event's
+`hours_source` says which: `measured`, `explicit` or `none`, so Mission Control can tell
+"not measured" from a real 0.
+
+<Aside type="note">
+**0.9.0 changes the definition.** Up to 0.8.x the figure was a sum of gaps between turns,
+and it was often 0 because the recorder was unarmed. From 0.9.0 it is agent working time.
+Numbers from 0.9.0 and before aren't comparable; the `kiro_version` on each event tells
+them apart.
+</Aside>
+
+A mission that started before you updated keeps its old measured value at its clear.
+Hours need a single mission per folder to attach to: a session records into a mission
+only when exactly one mission is active for it (it is found through the same lookup the
+gates use, so worktrees count), and otherwise records nothing.
+
+## `project_status` and `hours_source`
+
+Two fields tell Mission Control what the client knew when it sent an event, so an
+unattributed or zero-hours event says why.
+
+- **`project_status`** is on `skill_run`, `mission_started`, `mission_cleared`,
+  `mission_failed`, `preflight` and `qa_result` (not on the heartbeat). One of:
+
+  | Value | Meaning |
+  | --- | --- |
+  | `pinned` | A project was just pinned for the folder. |
+  | `cached` | The folder already had a pin from an earlier answer. |
+  | `choice-queued` | The app is asking you which project this is. |
+  | `no-match` | The repo is known and no project claims it, and nothing was pinned. |
+  | `no-repo` | There is no git repo in the folder. |
+  | `not-signed-in` | You aren't signed in to Mission Control. |
+  | `unavailable` | Mission Control didn't answer the lookup. |
+
+  Each folder's last status is recorded locally, so the hooks send it without a network
+  call. The field is left out when no status has been recorded yet.
+- **`hours_source`** is on `mission_cleared`: `measured`, `explicit` or `none`.
+
+The pack adds these fields only when the installed `kiroctl` knows them, so a pack newer
+than its CLI can't make its own events fail validation. `kiroctl update` updates both
+together.
 
 ## Self-check and repair
 
@@ -172,7 +259,8 @@ It checks:
 - **Skills:** every installed skill is readable and matches the pack.
 - **Connections:** the Mission Control self-repair (sign-in refresh, ingest key, project, send).
 - **Mission Control & telemetry:** sign-in, endpoint, how many skill uses were ever recorded, what's queued, the last send, the last heartbeat.
-- **Project attribution:** your Mission Control projects, the project each of your app projects and repos reports to and why, whether it matches the repo, and the recently reported repo → project pairs.
+- **Project attribution:** your Mission Control projects, the project each of your app projects and repos reports to and why, whether it matches the repo, and the recently reported repo → project pairs. Each folder shows its status, and for a folder with no repo, why `git` found none.
+- **Safe hooks:** one row each for `mission-inject`, `mission-turn-recorder`, `session-context` and `update-notify`: *armed*, *off by choice* (a `.disabled` file in `~/.kiro/gates/`) or *not armed*, and what you lose while a hook is off. See [the four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
 - **Doctor:** every `kiroctl doctor` row.
 - **Live Kiro session test** (optional, about 15 seconds each): runs a real `dev` session that reads a skill, then confirms the skill use was recorded. It runs in your normal home if Kiro is logged in there, and in the first client you're signed in to, from one of that client's projects (the setup you actually work in). It also catches Kiro refusing the read (`workspace-escape`). Kiro logins are kept per client, so "not logged in outside client projects" is normal.
 
@@ -212,3 +300,4 @@ it. (If a value is ever supplied it must be `"sandbox"` or `"prod"`.)
 | `kiroctl telemetry flush` | Flush the spool manually. |
 | `kiroctl telemetry config [--endpoint <u>] [--mint-url <u>\|off] [--auth minted\|shared-key]` | View or set the ingest endpoint and the ingest-key settings. |
 | `kiroctl telemetry project [--set <id> \| --reset] [--dir <p>]` | Show, pin by hand, or drop and re-resolve the Mission Control project for a folder. |
+| `kiroctl telemetry probe-allowlist` | Maintainer tool. Sends two real events to Mission Control's ingest, a `skill_run` with `project_status` and a `mission_cleared` with `hours_source`, both with `mission_id` `allowlist-probe-<date>`, under your own sign-in and ingest key. Exits 0 only if both are accepted; a rejection names the field. |

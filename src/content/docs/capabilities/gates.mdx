@@ -1,35 +1,33 @@
 ---
 title: Gates
-description: The 15 hooks wired into the agents — inert until armed (except the always-on telemetry, Mission Control and Mobile Next hooks), and always fail open.
+description: The 16 hooks wired into the agents. Four safe ones are armed by default, six are always on, the rest are inert until you arm them, and all of them fail open.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 Gates are hooks wired into the agents' tool calls. One property holds for all
-fifteen, without exception, and one holds for all but five:
+sixteen, without exception, and two more describe when a gate is on:
 
-- **Inert until armed — except the five always-on hooks.** A gate does nothing
-  until a `.enabled` flag file exists for it. The exceptions are
-  `telemetry-emit`, `mc-signin-gate` and `mc-session-health`, which are always
-  on because telemetry and the Mission Control sign-in are mandatory RevStar
-  policy (see [Telemetry](/capabilities/telemetry/)), and `mobile-guard` and
-  `mobile-sweep`, which are always on because Mobile Next device minutes are
-  metered and shared (see [Mobile app QA](/workflows/mobile-qa/)). Arm the
-  others globally or per project:
+- **Four safe hooks are armed for you.** `mission-inject`, `mission-turn-recorder`,
+  `session-context` and `update-notify` can't block anything: they inject text or
+  record a receipt. Every install and every `kiroctl update` arms them (see
+  [The four safe hooks](#the-four-safe-hooks-are-armed-by-default)).
+- **Six hooks are always on, and the other blocking gates are inert until armed.**
+  The always-on hooks are `telemetry-emit`, `mc-signin-gate` and `mc-session-health`,
+  which are always on because telemetry and the Mission Control sign-in are mandatory
+  RevStar policy (see [Telemetry](/capabilities/telemetry/)); `mobile-guard` and
+  `mobile-sweep`, which are always on because Mobile Next device minutes are metered
+  and shared (see [Mobile app QA](/workflows/mobile-qa/)); and `mission-pause`, the
+  emergency brake (see [Stopping a mission](/workflows/missions/#stopping-a-mission)).
+  Every other gate does nothing until a `.enabled` flag file exists for it. Arm those
+  globally or per project:
 
   ```sh
   touch ~/.kiro/gates/<name>.enabled          # everywhere
   touch <project>/.kiro/gates/<name>.enabled  # this project only
   ```
 
-  The two inject-only gates (`mission-inject`, `mission-turn-recorder`) can
-  also be armed together with:
-
-  ```sh
-  ./install.sh --arm-safe
-  ```
-
-- **Fails open.** (All fifteen.) A gate that errors or isn't armed never blocks the call it
+- **Fails open.** (All sixteen.) A gate that errors or isn't armed never blocks the call it
   would otherwise inspect. An armed gate that doesn't fire is worse than no
   gate at all, because it's trusted — arm one at a time and verify it.
 
@@ -39,25 +37,26 @@ gate should be stopping something and isn't, confirm the flag file exists
 before assuming the rule doesn't apply.
 </Aside>
 
-## The fifteen gates
+## The sixteen gates
 
 | Gate | Trigger | Kind | What it does |
 | --- | --- | --- | --- |
-| `mission-inject` | Session start | inject | Re-injects the active mission so it survives context compaction. |
-| `mission-turn-recorder` | Turn end | inject | Writes the turn receipt the `/goal` loop reads; a cleared mission emits a terminal stop. |
-| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. |
+| `mission-inject` | Session start | inject | Re-injects the active mission so it survives context compaction. Armed by default. |
+| `mission-turn-recorder` | Prompt submitted, turn end | inject | Writes the turn receipt the `/goal` loop reads (a cleared mission emits a terminal stop) and times each turn, which is where a mission's [autonomous hours](/capabilities/telemetry/#autonomous-hours) come from. Armed by default. |
+| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. Its stop-control half is **always on**: it also refuses an agent's attempt to touch the pause and stop-all files, the mission index, a hook's `.disabled` opt-out, the app's token log and mission API, and `kiroctl missions` (except `list`). See [below](#what-mission-state-protect-refuses-even-when-unarmed). |
 | `qa-render-gate` | fetch | block | Forces a real-browser render during QA instead of accepting a fetch as a visual check. A `mobile` run is not exempt: web pages still need the browser. |
 | `qa-report-gate` | write | block | Refuses a QA report missing `WORKS` + `MATCHES INTENT` verdicts (each with `method: live\|inspection\|code`), render evidence, a real coverage receipt file (full runs), or the adversarial-pass receipt (runs with change items); and any "PASS with note". For a run marked `mobile`, also refuses a report with no fresh device screenshot, a device still booked, a created test account with no cleanup, or no build file id and commit. |
 | `git-protect-gate` | shell | block | Refuses direct commit/merge/push to protected branches and `--no-verify`; allows `gh pr`. |
 | `ado-receipt-gate` | shell | block | Refuses opening a PR (`gh pr create` / `glab mr create` / `az repos pr create`) for ADO-bound work — a `feat/<id>-*` branch — until the item's status / assignee / comment update is recorded as a receipt. Disarmed by default; fails open (any uncertainty or error allows the PR); fires only on ADO-bound branches. |
 | `reuse-before-create-gate` | new-file write | soft | Warns once about a duplicate of an existing owner, then relents. |
-| `session-context` | Session start | inject | Injects a git snapshot into context. |
-| `update-notify` | Session start | inject | Reminds you when a newer version is available; rate-limited, fails open. |
+| `session-context` | Session start | inject | Injects a git snapshot into context. Armed by default. |
+| `update-notify` | Session start | inject | Reminds you when a newer version is available; rate-limited, fails open. Armed by default. |
 | `telemetry-emit` | read | always-on | Emits `skill_run` and opportunistically flushes the adoption-telemetry spool. Mandatory RevStar policy, not arm-gated. Never blocks; fails open. See [Telemetry](/capabilities/telemetry/). |
 | `mc-signin-gate` | prompt submit (`dev`, `coder`, `scout`) | always-on block | Refuses the prompt until you are signed in to Mission Control. See [below](#mission-control-sign-in). |
 | `mc-session-health` | Session start (`dev`) | always-on inject | Checks the Mission Control connection locally, starts the background repair, and notes only *changes* that need you. See [Telemetry → Self-check](/capabilities/telemetry/#self-check-and-repair). |
 | `mobile-guard` | Mobile Next tool calls (`dev`, `coder`) | always-on block | Guards every Mobile Next call: refuses a production or unprovable build, an allocation with no stored file, an empty or unreadable balance, and a run past its minute cap (80% one-time warning, 100% forced release). Idle devices are released outside a QA pass. Fails closed only on a booking it cannot budget-check. See [Mobile app QA](/workflows/mobile-qa/#safeguards-and-costs). |
 | `mobile-sweep` | Session start (`dev`) | always-on inject | Releases devices a crashed session left booked and reports any it could not release or could not identify. Never blocks. |
+| `mission-pause` | Every tool call (`dev`, `coder`, `scout`) | always-on block | The emergency brake. Refuses every tool call in a session whose mission a person paused, and in every session on the machine while **Stop all agents** is on. Lets only the `goal` completion tool through. Fails open on its own errors. See [Stopping a mission](/workflows/missions/#stopping-a-mission). |
 
 ## Kinds
 
@@ -67,7 +66,65 @@ before assuming the rule doesn't apply.
   repeatedly on the same finding.
 - **always-on** — runs without being armed. `telemetry-emit`,
   `mc-session-health` and `mobile-sweep` never refuse anything; `mc-signin-gate`
-  can refuse a prompt, and `mobile-guard` can refuse a Mobile Next tool call.
+  can refuse a prompt, `mobile-guard` can refuse a Mobile Next tool call, and
+  `mission-pause` refuses every tool call, but only while a person has paused a
+  mission or stopped all agents.
+
+## The four safe hooks are armed by default
+
+From 0.9.0, `install.sh`, `install.ps1`, the bootstrap scripts and `kiroctl update`
+all arm `mission-inject`, `mission-turn-recorder`, `session-context` and
+`update-notify`. Before, they were armed only with `--arm-safe`; the flag still works
+and now does the same as no flag. The blocking gates stay inert until you arm them.
+
+What changes in your sessions:
+
+- During a mission, the mission text is re-injected at session start.
+- The turn recorder times each turn. That is what gives a cleared mission its
+  measured [autonomous hours](/capabilities/telemetry/#autonomous-hours). With it off,
+  the clear reports no hours.
+- Every session starts with a short git snapshot (`session-context`).
+- You get an update reminder when a newer version is out (`update-notify`).
+
+**Turning one off for good.** Create a file named `<name>.disabled` in
+`~/.kiro/gates/`:
+
+```sh
+touch ~/.kiro/gates/session-context.disabled
+```
+
+The hook is now off by choice. Installs and `kiroctl update` never re-arm a hook that
+has a `.disabled` file, even with `--arm-all`. Delete the file and run
+`kiroctl update` to turn it back on. Agents can't create, change or remove a
+`.disabled` file.
+
+`kiroctl doctor` and **Settings → Diagnostics** show one row per safe hook:
+*armed*, *off by choice* (what you lose, and the file to delete) or *not armed* (the
+fix, usually `kiroctl update`). Diagnostics also warns when the turn recorder is armed
+but the installed `dev` agent doesn't run it when a prompt is submitted. That happens
+on an older pack: each turn is then timed from the previous turn's end instead of its
+start.
+
+## What `mission-state-protect` refuses even when unarmed
+
+The gate's original job, protecting mission state, still needs its `.enabled` flag.
+Its stop-control half does not. With or without the flag, an agent can't:
+
+- create, change, move or delete a pause file (`~/.kiro/missions/*.paused`), the
+  `~/.kiro/stop-all` file, a driver record, or the mission index in
+  `~/.kiro/missions/`. Reading them (`ls`, `cat`) is fine;
+- read the app's token log (`/tmp/kiroctl-gui-*`) or call the app's mission API
+  (`/api/missions`, `/api/qa-url`). `kiroctl gui --qa-url` is the sanctioned way
+  for a QA browser to get into the app;
+- run `kiroctl missions pause | resume | end | stop-all | resume-all`.
+  `kiroctl missions list` is allowed;
+- create, change or remove a hook's `.disabled` opt-out.
+
+The gate also no longer trusts a command just because it names a pack script. A
+command passes as a sanctioned write only when it actually runs one, as in
+`node <pack>/bin/mission-state.js …`. A command such as
+`rm .kiro-mission # mission-state.js` used to get through on the name alone. It is
+refused now.
 
 ## Mission Control sign-in
 
@@ -126,6 +183,22 @@ the check itself can't run (no git, or it takes over 2 minutes), it **fails open
 mission clears with a note, and the app's Mission Control panel shows how often that
 happened in the last 7 days.
 
+**Which repos it checks.** The repos come from the mission's entry in the mission index
+(`~/.kiro/missions/`). Each time a gate resolves a session to the mission from inside a
+repo or a git worktree, that path is added to the entry (the worktree's path, not the main
+checkout, because the work is on the worktree's branch), and the project's known repos are
+added for any not yet seen. Only then does it fall back to the mission root's
+`.kiro/repos.json` and `git`. From 0.9.0 an empty list no longer fails open. The clear is
+refused:
+
+```text
+fan-out gate: REFUSED — no repositories found for this mission; name them with `--repos <paths>`, or pass `--no-repos` if no code changed
+```
+
+Name the repos with `mission-state.js --clear --repos <path> [<path> …]`, or pass
+`--no-repos` when the mission changed no code. The choice is recorded on the exit receipt.
+The 2-minute timeout and a git failure still fail open.
+
 **Off-switch (a person only):** create `qa-fanout-gate.disabled` in `~/.kiro/gates/` (or
 the project's `.kiro/gates/`) **before** starting the mission. A flag created during a
 mission is ignored, and agents can't create it.
@@ -139,7 +212,7 @@ Run the full self-test suite, which asserts every gate in both directions
 node kiro/gates/selftest.js
 ```
 
-A clean run reports **131/131**. Scope it to one gate or get verbose output:
+A clean run reports **246/246**. Scope it to one gate or get verbose output:
 
 ```sh
 node kiro/gates/selftest.js qa
