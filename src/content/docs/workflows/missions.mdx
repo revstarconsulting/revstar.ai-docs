@@ -464,6 +464,14 @@ from the running app and is refused while stop-all is on or the caller's mission
   isn't one of the three.
 - **A second, unpaused agent that drives the app's UI could click Resume.** That is
   visible in its transcript, and stop-all stops that agent too.
+- **An agent can't lift a pause from the shell, but a determined one isn't walled
+  in.** The gate refuses the obvious routes: removing the pause or stop-all file,
+  including by a glob, a variable, a `cd` or `find … -delete` (a glob, variable or
+  `find` is fine only under `telemetry`, `skills`, `steering`, `agents`, `prompts`,
+  `cache` or `logs` in the kiro home), the app's token log and mission API, and
+  `kiroctl missions`. A deliberately obfuscated command (`base64 … | sh`, an `eval`
+  of a built string, a script written first and then run) is not caught. See
+  [What `mission-state-protect` refuses](/capabilities/gates/#what-mission-state-protect-refuses-even-when-unarmed).
 - **Stop-all stops you too.** Your own interactive session refuses tool calls until you
   resume. Lift it from the app or with `kiroctl missions resume-all`.
 - **The brake fails open.** If the pause hook itself crashes, can't read the index or

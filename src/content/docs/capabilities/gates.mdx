@@ -112,13 +112,44 @@ Its stop-control half does not. With or without the flag, an agent can't:
 
 - create, change, move or delete a pause file (`~/.kiro/missions/*.paused`), the
   `~/.kiro/stop-all` file, a driver record, or the mission index in
-  `~/.kiro/missions/`. Reading them (`ls`, `cat`) is fine;
+  `~/.kiro/missions/`. Reading them (`ls`, `cat`) is fine. This holds for the
+  real kiro home whatever it is called (a `KIRO_HOME` that isn't `.kiro`), and for
+  any `.kiro` folder;
+- reach those files without naming them. A destructive command (`rm`, `mv`,
+  `shred`, `truncate`, a redirect, `find … -delete` or `-exec`, `sed -i`, `rsync
+  --delete` and the like) is refused when a **glob**, a **variable**, a **`cd`** or a
+  **command substitution** under the kiro home can lead it there. Examples that are
+  refused: `rm ~/.kiro/stop*`, `cd ~/.kiro; rm -f stop*`, `d=missions; rm
+  ~/.kiro/$d/*.paused`, `find ~/.kiro -name '*.paused' -delete`,
+  `rm $(ls -d ~/.kiro/mi*)/*.paused`. The same goes for `bash -c '…'` and `eval`
+  of those, and for a Python or Node one-liner that lists the folder and removes
+  from it;
 - read the app's token log (`/tmp/kiroctl-gui-*`) or call the app's mission API
   (`/api/missions`, `/api/qa-url`). `kiroctl gui --qa-url` is the sanctioned way
   for a QA browser to get into the app;
 - run `kiroctl missions pause | resume | end | stop-all | resume-all`.
   `kiroctl missions list` is allowed;
 - create, change or remove a hook's `.disabled` opt-out.
+
+**The allow-list.** Under the kiro home, a destructive glob, variable or `find` is
+allowed only when its first folder is spelled out and is one of `telemetry`,
+`skills`, `steering`, `agents`, `prompts`, `cache` or `logs`. None of those can
+hold a pause file. So `rm ~/.kiro/telemetry/repo-cache/*.json` and
+`find ~/.kiro/skills -name '*.bak' -delete` work, and `rm ~/.kiro/*`,
+`rm ~/.kiro/m*/*` and `rm ~/.kiro/gates/*` don't. A glob in the first position is
+refused when it can match `missions`, `stop-all` or `gates`; `rm ~/.kiro/*.json`
+can't, so it is allowed. Deleting the kiro home itself is refused. A command
+substitution that doesn't mention the kiro home (`rm -rf $(git rev-parse
+--show-toplevel)/dist/*`), and any command that leaves the kiro home alone, is
+unaffected.
+
+**What it does not chase.** A deliberately obfuscated command gets through:
+`base64 … | sh`, an `eval` of a string built at run time, or a script written to
+disk and then run. The browser route is the same: an agent that drives the app's
+own UI could still click Resume, as the limits in
+[Missions](/workflows/missions/#limits-you-should-know-about) say. The refusals
+keep an agent from lifting a pause by accident or by an obvious route. They are not
+a sandbox.
 
 The gate also no longer trusts a command just because it names a pack script. A
 command passes as a sanctioned write only when it actually runs one, as in
