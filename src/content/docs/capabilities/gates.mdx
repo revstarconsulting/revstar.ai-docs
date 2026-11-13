@@ -133,8 +133,8 @@ Its stop-control half does not. With or without the flag, an agent can't:
 
 **The allow-list.** Under the kiro home, a destructive glob, variable or `find` is
 allowed only when its first folder is spelled out and is one of `telemetry`,
-`skills`, `steering`, `agents`, `prompts`, `cache` or `logs`. None of those can
-hold a pause file. So `rm ~/.kiro/telemetry/repo-cache/*.json` and
+`skills`, `steering`, `agents`, `prompts`, `cache` or `logs` (the one other case is
+below). None of those can hold a pause file. So `rm ~/.kiro/telemetry/repo-cache/*.json` and
 `find ~/.kiro/skills -name '*.bak' -delete` work, and `rm ~/.kiro/*`,
 `rm ~/.kiro/m*/*` and `rm ~/.kiro/gates/*` don't. A glob in the first position is
 refused when it can match `missions`, `stop-all` or `gates`; `rm ~/.kiro/*.json`
