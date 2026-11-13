@@ -155,7 +155,7 @@ with `gh auth login` or your SSH key, then clone and run the bootstrap below.
     # git comes from the Command Line Tools (xcode-select --install) if missing
     git clone https://github.com/revstarconsulting/revstar.ai.git
     cd revstar.ai
-    ./scripts/bootstrap-macos.sh              # add --arm-safe to arm the inject-only gates
+    ./scripts/bootstrap-macos.sh              # arms the four safe gates; --arm-safe is accepted and does the same
     ```
     No Homebrew required — `fnm` installs Node per-user.
   </TabItem>
@@ -273,8 +273,14 @@ From inside `revstar.ai`, point the installer at your `revstar.ai-registry` clon
   </TabItem>
 </Tabs>
 
-Add `--arm-safe` to also arm the inject-only gates (they can't block anything —
-they only inject mission state and write turn receipts).
+Every install arms the four **safe gates** (`mission-inject`, `mission-turn-recorder`,
+`session-context`, `update-notify`). They can't block anything: they inject mission and
+session context, remind you of updates, and record the turn receipts that measure a
+mission's autonomous hours. `--arm-safe` is still accepted and does the same. The
+blocking gates stay inert until you arm them. To keep a safe gate off for good, create
+`~/.kiro/gates/<name>.disabled`; installs and `kiroctl update` never re-arm it. See
+[Gates → The four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
+`install.ps1` arms the same four.
 
 ### What the bootstrap does
 

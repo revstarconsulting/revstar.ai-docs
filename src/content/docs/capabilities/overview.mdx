@@ -14,15 +14,18 @@ of them. They layer on top of each other rather than working in isolation:
 - **[Agents](/capabilities/agents/)** — the personas that use steering and
   skills to do the work. Each has a fixed model and a fixed set of tools.
 - **[Gates](/capabilities/gates/)** — enforcement hooks wired into the agents.
-  Every gate is **inert until armed** with a `.enabled` flag file, except the
-  always-on hooks: telemetry and Mission Control sign-in (mandatory), and the
-  Mobile Next device safeguards. Every
+  Every gate is **inert until armed** with a `.enabled` flag file, except the four
+  safe hooks the installer arms for you (a `.disabled` file turns one off) and the
+  always-on hooks: telemetry and Mission Control sign-in (mandatory), the Mobile Next
+  device safeguards, and `mission-pause`, the emergency brake behind the app's Missions
+  drawer. Every
   gate **fails open** — a crashing or unarmed gate never blocks you silently.
 
 ## Two systems built on these primitives
 
 - **Missions** — a standing macro-goal for multi-phase work, kept alive across
-  context compaction by the `mission-inject` and `mission-turn-recorder` gates.
+  context compaction by the `mission-inject` and `mission-turn-recorder` gates, and stopped
+  from the app's Missions drawer by `mission-pause`.
   See the `mission` skill.
 - **Memory** — durable facts and standing preferences, split by scope. **Pack
   memory** (`kiro/memory/`) is a maintainer-curated knowledge base of

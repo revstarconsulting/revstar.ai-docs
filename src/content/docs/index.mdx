@@ -3,7 +3,7 @@ title: RevStar.ai Docs
 description: Install kiroctl, bind a client-scoped project, and use the delivered Kiro capabilities — agents, skills, gates, steering, missions and QA.
 template: splash
 hero:
-  tagline: A governed Kiro CLI setup — an Opus/Sonnet agent framework, on-demand skills, mission mode, render-backed QA, client-bound SSO, and enforcement gates. Inert after install until you arm a gate.
+  tagline: A governed Kiro CLI setup — an Opus/Sonnet agent framework, on-demand skills, mission mode, render-backed QA, client-bound SSO, and enforcement gates. Blocking gates stay inert after install until you arm them.
   actions:
     - text: Get started
       link: ./start/overview/
@@ -24,9 +24,9 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
     a client-bound project with `kiroctl` — macOS, Linux/WSL, and Windows.
   </Card>
   <Card title="Know your capabilities" icon="puzzle">
-    The `dev`/`coder`/`scout` agents, 22 skills, 15 gates, and 5 steering files —
-    what each does and when it fires. Gates stay inert until you arm them — with the exception of the always-on
-    telemetry, Mission Control and Mobile Next hooks.
+    The `dev`/`coder`/`scout` agents, 22 skills, 16 gates, and 5 steering files —
+    what each does and when it fires. Gates stay inert until you arm them — with the exception of the four safe hooks the installer arms and the always-on
+    telemetry, Mission Control, Mobile Next and mission-pause hooks.
   </Card>
   <Card title="Missions & QA" icon="approve-check">
     Drive multi-phase work autonomously with mission mode and the `/goal` loop,

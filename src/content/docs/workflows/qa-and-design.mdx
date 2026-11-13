@@ -164,8 +164,8 @@ for you (surface + interaction inventories → `qa-registry-merge.js` → the pr
 manifest). You can also run them by hand from the project root while iterating on
 the contract.
 
-**3. Arm the gates.** Gates are inert until an enable flag exists (the exceptions are the always-on
-`telemetry-emit` hook and, wherever Mobile Next is configured, `mobile-guard` and `mobile-sweep`) — globally at
+**3. Arm the gates.** The four safe hooks are already armed by the installer. The blocking gates are inert until an enable flag exists (the exceptions are the always-on
+`telemetry-emit` hook, `mission-pause` and, wherever Mobile Next is configured, `mobile-guard` and `mobile-sweep`) — globally at
 `$KIRO_HOME/gates/<gate>.enabled` or per-project at `<project>/.kiro/gates/`. Arm
 one at a time:
 
@@ -268,7 +268,14 @@ code. Mobile screens are tested together in as few device bookings as possible, 
 agent never raises the minute cap.
 
 **Before a mission can clear**, the [fan-out gate](/capabilities/gates/#the-qa-fan-out-gate)
-checks all of this against the mission's whole diff.
+checks all of this against the mission's whole diff. It finds the mission's repos from the
+mission index, so it works from a git worktree or a second repo, and a mission whose repos
+can't be found is refused rather than waved through (`--repos <paths>` names them,
+`--no-repos` says no code changed).
+
+QA of the RevStar.ai app itself: an agent can't read the app's token log. Use
+`kiroctl gui --qa-url`, which prints a one-time URL for the QA browser from the running
+app. It is refused while all agents are stopped or the mission is paused.
 
 ## What a QA report must contain
 

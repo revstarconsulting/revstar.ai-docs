@@ -40,6 +40,23 @@ after that is `kiroctl sync`.
 - **Skills** — the trigger phrasing and steps of any `SKILL.md`.
 - **Agents** — an agent's instructions, model pin, or skill list.
 
+## Turning a hook on or off
+
+Gate hooks have their own switches, in `~/.kiro/gates/`
+(or a project's `.kiro/gates/`):
+
+- `<name>.enabled` arms a blocking gate. Nothing changes until you create it.
+- `<name>.disabled` turns one of the four **safe hooks** (`mission-inject`,
+  `mission-turn-recorder`, `session-context`, `update-notify`) off for good. The installer
+  arms those by default, and `kiroctl update` re-arms them every time, except a hook
+  with a `.disabled` file. `kiroctl doctor` and Diagnostics show it as *off by choice*.
+  Delete the file to let installs arm it again.
+- `qa-fanout-gate.disabled` is the fan-out gate's off-switch; create it before the
+  mission starts.
+
+Only a person creates these files; agents are refused. `mission-pause` has no switch:
+an emergency brake you can disarm isn't one. See [Gates](/capabilities/gates/).
+
 ## Recommended workflow
 
 1. Edit the file directly — no special mode needed.

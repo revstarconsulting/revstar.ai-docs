@@ -56,6 +56,9 @@ wedged turn (e.g. a large parallel-write batch that never returns, ADO 145914).
 Relaunches reset the session context but the mission and task list persist, and a
 run that keeps hanging is capped so it terminates instead of looping forever.
 
+A person can end a `/goal` loop or a hands-off run from the app at any time. See
+[Stopping a mission](#stopping-a-mission).
+
 ## The base branch
 
 `--init --base-branch <branch>` records, per repo, the branch the mission's work merges
@@ -64,6 +67,80 @@ mission's changes against it the way a pull request does, and `--init` prints a
 `base <repo>: …` line for each repo so a wrong branch shows up at minute one. Without
 the flag each repo uses the project's Target branch, then the repo contract, then the
 closest common branch. See [which branch it measures against](/workflows/qa-and-design/#scoped-runs-the-change-and-everything-connected-to-it).
+
+## One mission id, and how hours are measured
+
+`mission-state.js --init` mints one random **mission id** and stores it beside the
+mission's sentinel file (`<sentinel>.id`). Every mission event Mission Control receives
+(`mission_started`, `mission_cleared`, `mission_failed`, `preflight`, `qa_result` and
+`skill_run`) carries that same id, so a start and its clear can be paired. Before, the id
+was the session id, so a resumed session or a clear from another session sent a different
+one. A mission that was already running when you updated keeps working on its session id,
+so its QA counters don't restart mid-mission.
+
+**Autonomous hours are agent working time.** The turn recorder times each turn from the
+moment you submit a prompt to the moment the agent's turn ends. The time between turns,
+while you read or type, is not counted, and neither is any time before `--init` or with no
+mission. A single turn over 4 hours is treated as hung and counted as 4. If a turn ends
+with no recorded start (some `/goal` and driver prompts), it counts from the previous
+turn's end, with the same 4-hour cap, and is marked as inferred. When two sessions work one
+mission at once, overlapping time is counted once. Every session appends to the same
+receipt, `.kiro-turn.<missionId>.json`, so a resume or an ACP relaunch keeps adding to it.
+The receipt is reset at `--init` and removed at `--clear`.
+
+To see the number so far, run:
+
+```sh
+node <pack>/bin/mission-state.js --hours            # add --json for scripts
+```
+
+It prints the same figure `--clear` will report, including the turn running now, or
+`AUTONOMOUS-HOURS none` when nothing was measured (the turn recorder is off or opted out).
+
+**Measured wins.** When there is a measurement, `--clear` reports it and ignores a typed
+`--hours-autonomous` (it prints a note saying so). The typed value is used only when
+nothing was measured. `--actual-hours` is your total time and stays as you type it. If it
+is lower than the measured agent time, `actual_hours` is left out of the report with a
+note; the measurement is kept. The `mission_cleared` event says which one it sent in
+`hours_source`: `measured`, `explicit` or `none`. The `mission` skill no longer asks the
+agent to work out autonomous hours. See
+[Telemetry → Autonomous hours](/capabilities/telemetry/#autonomous-hours).
+
+## Finding the mission from a worktree or a second repo
+
+Every gate and `mission-state.js` find the mission the same way, through one shared
+resolver. Before 0.9.0 each looked in one folder, so a session in a git worktree or in
+another repo found nothing, and gates such as `mission-inject` and `mission-state-protect`
+went silently inert. Now the order is:
+
+1. **The mission index.** `~/.kiro/missions/<missionId>.json` holds the mission's
+   sentinel path, root, the sessions that have worked it and its repos. `--init` and
+   `--set` write it, `--clear` and `--failed` remove it. Never edit it by hand; the
+   protect gate refuses.
+2. **The folder walk, worktree-aware.** Up from the working folder to the project root,
+   then the repo or worktree root, then the main checkout of a git worktree. A worktree
+   is recognised by reading its `.git` file, with no `git` process, because this runs on
+   every tool call.
+3. **The index the other way round.** A mission whose root or repos contain the working
+   folder: a second repo, a worktree made later, a repo nested under the mission root.
+
+Tools that aren't on the hot path, such as `mission-state.js`, can also look through the
+folders of the projects `kiroctl` knows about.
+
+A session's own index entry wins, so an agent that `cd`s into another project with its own
+mission is still working its own. Gates add the repo or worktree they find themselves in
+to the mission's entry. Missions started before 0.9.0 have no index entry and
+are still found by the walk; the app lists them as **Not indexed**. Pausing one adds it to
+the index. Sub-agents resolve to their parent's mission because they run in the same
+folders.
+
+The index also tells the [QA fan-out gate](/capabilities/gates/#the-qa-fan-out-gate)
+which repos the mission touched. When none can be found at clear time, name them:
+
+```sh
+node <pack>/bin/mission-state.js --clear --repos <path> [<path> …]   # name the repos
+node <pack>/bin/mission-state.js --clear --no-repos                  # no code changed
+```
 
 ## The preflight gate
 
@@ -78,10 +155,12 @@ was skipped, not a tool bug. `mission-state.js --init` verifies:
   hash, so an ungrilled or since-edited plan is caught.
 - **bug-report artifact** (bug-fix missions) — a real bug report to work from.
 - **access preflight** (both kinds) — the active GitHub account can reach the repo
-  named by the git remote, plus any token / staging / DB / deploy probes the project
-  declares in the `qa-contract.json` `access` block. Catches the "wrong `gh`
-  account", "expired/forbidden token", and "staging is actually production" classes
-  at minute one instead of hour three.
+  named by the git remote, **and the project has declared its external access** in the
+  `qa-contract.json` `access` block: one probe per external dependency (token, staging
+  target, database, deploy, QA login, or a custom check), or
+  `"noExternalAccess": true` when there are none. Catches the "wrong `gh` account",
+  "expired/forbidden token", "staging is actually production" and "we never checked the
+  OAuth connection" classes at minute one instead of hour three.
 
 A gap is a **hard but overridable** block: it names exactly what's missing, warns
 that skipping it raises the error / regression / defect rate, and **refuses to
@@ -90,16 +169,112 @@ autonomous kickoff therefore stops rather than running misconfigured. The ack is
 **separate from `--preapproved`** — pre-approving reversible decisions never
 silently waives a missing QA environment or an ungrilled plan.
 
+### Access: you must declare it
+
 **Access findings are tiered by reversibility.** A *missing* credential or login
 (can't-do-it) is waveable like the others — `--ack-skipped access` proceeds and the
-mission ends PARTIAL, doing only the parts it can. A *wrong* finding — the wrong
-`gh` identity, or a "staging" target that is actually production — is **not
-waveable**: `--ack-skipped`/`--force` cannot clear it, because a write would
-succeed but land in the wrong place. On an autonomous run the agent never
-self-waves an access gap; it surfaces for your proceed-partial / hold decision.
-The verdict is one of `ACCESS-OK | ACCESS-PARTIAL | ACCESS-BLOCKED |
-ACCESS-UNVALIDATED`; declared probes live in the `access` block of
-`qa-contract.json`.
+mission ends PARTIAL, doing only the parts it can. Two kinds of finding are **not
+waveable**: `--ack-skipped` and `--force` cannot clear them.
+
+- **A wrong finding.** The wrong `gh` identity, or a "staging" target that is actually
+  production. A write would succeed but land in the wrong place.
+- **An undeclared contract.** From 0.9.0 a `qa-contract.json` that declares no
+  external access is refused, and so is a project with no `qa-contract.json` at all.
+  Before, no declaration quietly passed after checking only the GitHub login and the git
+  remote, which says nothing about an OAuth connection or a paid API.
+
+On an autonomous run the agent never self-waves an access gap; it surfaces for your
+proceed-partial / hold decision. The verdict is one of `ACCESS-OK | ACCESS-PARTIAL |
+ACCESS-BLOCKED | ACCESS-UNVALIDATED`. An undeclared contract is `ACCESS-UNVALIDATED`.
+The receipt records `contractDeclared: true|false`.
+
+**What counts as declared.** Either of:
+
+- `"access": { "noExternalAccess": true }` — the explicit statement that this project
+  has no external dependencies; or
+- at least one external-dependency probe: `stagingProbe`, `tokens`, `paidApis`, `deploy`,
+  `qaLogin`, `custom`, or `backend.probe` for the database.
+
+An empty `access: {}`, or one with only `expectedGhUser`, is not a declaration: a GitHub
+identity is not an external dependency. `noExternalAccess: true` together with any probe
+contradicts itself and is a contract error. The refusal prints the lines to add:
+
+```json
+{
+  "access": { "noExternalAccess": true }
+}
+```
+
+```json
+{
+  "access": {
+    "custom": [
+      { "name": "qb-oauth", "probe": "<command that exits 0 only when the connection works end to end>", "covers": "qb-oauth" }
+    ]
+  }
+}
+```
+
+:::caution[Your next mission stops once]
+Every existing project's `qa-contract.json` has no `access` block, so the **first
+feature or bug-fix mission after you update to 0.9.0 stops at `--init`** until the project
+declares access. This is deliberate and applies to every project. Add the block once; it
+is committed with the contract. A bare `--init` with no `--kind`, `--plan` or `--bug`
+is the no-process mode: it runs no preflight at all and is not affected.
+
+If the project has no external dependencies, add `"access": { "noExternalAccess": true }`
+and you are done. Only you can make that claim: RevStar.ai never writes it for you.
+`kiroctl project set-env` never writes an access declaration (it leaves one you wrote
+alone), the agent must not add it to get past the check, and the app's QA card reminds
+you to declare access before the first mission.
+:::
+
+**A probe checks the real thing.** A probe is a command that exits 0 only when the
+dependency works end to end. "We have the QuickBooks sandbox" is a statement, not a
+check. "A refresh-token row exists for the sandbox company **and** the redirect URI is
+registered on the dev app" is a check; so is one authenticated call that returns 2xx.
+
+**The plan's Required Access block.** When `grill-me` (or `pm-grill-me`) finishes a
+plan, the plan carries a `## Required Access` section with a fenced `json` block. It
+names the project's contract, relative to the plan file, and lists each external
+dependency by id:
+
+```json
+{
+  "contract": "../repo/qa-contract.json",
+  "dependencies": [
+    { "id": "qb-oauth", "what": "QuickBooks OAuth connection for the sandbox lane" }
+  ]
+}
+```
+
+Each probe in the contract names the entry it verifies with `"covers": "qb-oauth"`.
+`grill-receipt.js write` runs the check and **refuses to write the grill receipt**
+until every listed dependency is one of:
+
+- **resolved** — a covering probe exists and passes now;
+- **deferred to kickoff** — `"verifyAt": "kickoff", "why": "<why it can't run here>"`.
+  One dependency at a time, and only with a reason (a `verifyAt` with no `why` is
+  refused). The probe must still exist, and it must pass at `mission-state.js --init`
+  before the build starts, not waivable;
+- **descoped** — `"descoped": "<the criterion it drops>"`. That slice is not built.
+  `--init` adds an `access-descoped:<id>` criterion to the ledger that can never be
+  marked MET, so the mission can only end **PARTIAL**.
+
+The same list is checked again at `--init`, so changing the contract path re-opens the
+grill. The two sides must agree: an empty `dependencies` list pairs with
+`"noExternalAccess": true` in the contract, and a contract that says
+`noExternalAccess` refuses a plan that lists dependencies. A plan with nothing to
+execute (a design review with no repo) writes `{ "contract": null, "dependencies": [] }`
+and gets its receipt; a mission started from it is still refused at `--init` until the
+project declares its access.
+
+**Plans grilled before 0.9.0.** Their grill receipt has no access fields, so the
+per-dependency match is skipped for them. The contract-must-declare rule still applies.
+Anything grilled or re-grilled from 0.9.0 gets both.
+
+**Which probe is missing.** A preflight that finds a probe missing now names the probe
+(the token or probe name and its detail), not only the category.
 
 Two checks are **advisory only** — they warn and proceed:
 
@@ -180,14 +355,128 @@ a call that takes seconds.
 Stop only for a genuine **one-way door**:
 
 - money movement
-- auth or access changes
+- auth or access changes **for people and credentials**: granting, changing or revoking
+  someone's access, creating or rotating credentials (including a key the agent would
+  make for itself), and anything in production
 - destructive or irreversible production data operations
 - external sends
 - schema migrations
 
+**Reversible setup on a system you already granted access to is a two-way door.** On a
+non-production system you have given the agent access to, it does reversible
+configuration itself, logs how to undo it, and continues: registering a redirect URI on a
+dev app, adding a sandbox webhook or test user, enabling an API on a dev project, setting
+a non-secret config value. It doesn't park these as blockers.
+
+When the agent genuinely can't do such a step, it names the exact step and why. It does
+not write a coarse "needs the QuickBooks sandbox":
+
+- **Don't:** "Blocked: needs the QuickBooks sandbox."
+- **Do:** "Register the redirect URI `https://dev.example.com/qb-callback` on the QB dev
+  app (reversible). The dev account you granted lacks the admin permission to edit the
+  app's redirect URIs; granting that permission is the one-way step. Everything else for
+  the lane is built and waits on that one step."
+
+The full list is in the mission skill's `references/autonomy-completion.md`.
+
 <Aside type="caution">
 Session length, context budget, or "a fresh start would be cleaner" are never
 reasons to stop a mission — it's designed to survive compaction.
+</Aside>
+
+## Stopping a mission
+
+You can stop a mission, or every Kiro agent on the machine, without touching a terminal
+session. The stop takes effect at the agent's **next tool call**, in the middle of a
+turn, not at its end.
+
+### From the app: the Missions drawer
+
+The **Missions** button in the app's header opens a drawer listing every mission on the
+machine, with its project, state, age, whether it is pre-approved, and the mission text.
+Each project's page also has a **Mission** card for its own mission.
+
+| Control | What it does |
+| --- | --- |
+| **Pause** | The agents working on that mission, and their sub-agents, refuse their next tool call. The mission, task list and ledger are kept. Asks you to confirm. |
+| **Resume** | Lifts the pause. No confirmation. |
+| **End** | Ends the mission without finishing it. It is recorded as failed ("ended from the app"), so Mission Control sees a `mission_failed`. The task list and ledger files stay on disk. Asks you to confirm. |
+| **Stop all agents** | Every Kiro agent on the machine refuses its next tool call: `dev`, `coder` and `scout`, mission or not, **including your own interactive session**. Asks you to confirm. |
+| **Resume all** | Lifts stop-all. No confirmation. |
+| **Kill** | Appears 60 seconds after a pause if the hands-off driver is still running. Ends the driver's whole process tree; the turn in flight can lose unsaved work. Asks you to confirm. |
+
+While stop-all is on, the header button turns into a red **All agents stopped** pill.
+The drawer refreshes every 4 seconds while open. It shows loading, empty ("No missions on
+this machine") and error states (with the reason and a **Retry** button), and marks a
+mission **Paused** or **Not indexed**.
+
+### From a terminal: `kiroctl missions`
+
+The same controls work when the app isn't running. This is how you lift a stop-all left
+on after the app crashed or the machine rebooted.
+
+```sh
+kiroctl missions list                 # missions on this machine, and whether stop-all is on
+kiroctl missions pause <id>
+kiroctl missions resume <id>
+kiroctl missions end <id>
+kiroctl missions stop-all
+kiroctl missions resume-all
+```
+
+Add `--yes` to skip the confirmation and `--json` for machine output. Agents are refused
+every one of these except `list`.
+
+### What a paused agent sees
+
+Every tool call fails with a message that says a person paused the mission (or stopped
+all agents), that the agent must not try to lift it, and where a person can lift it: the
+app's Missions drawer, or `kiroctl missions resume <id>` / `resume-all` in a terminal.
+The one tool that still works is the `goal` completion tool.
+
+**A pause ends the `/goal` loop.** kiro-cli's loop can't be cancelled from outside, and a
+loop that keeps re-prompting into refused turns would burn its `--max` iterations for
+nothing. So the paused agent is told to call the `goal` tool to end the loop, and
+stop. The mission is kept. After you resume it, start a new `/goal` (the app's
+**Shortcuts** drawer has the line). With kiro-cli Workflows off there is no loop, and the
+pause simply refuses tools.
+
+**Hands-off runs stop too.** `mission-acp-driver.js` records itself in
+`~/.kiro/missions/<missionId>.driver.json`. On a pause or stop-all it cancels the running
+turn, exits with code 9 and does not relaunch; it checks every 5 seconds during a turn.
+`mission-supervise.sh --stop` now also ends the in-flight `kiro-cli` turn, and the
+supervised runner stops between turns.
+
+**Only a person can lift a pause.** The agent can't create, change or remove the pause or
+stop-all files, read the app's token log, call its mission API or run
+`kiroctl missions`. These refusals are always on, whether or not `mission-state-protect`
+is armed. See
+[What `mission-state-protect` refuses](/capabilities/gates/#what-mission-state-protect-refuses-even-when-unarmed).
+A QA browser gets into the app with `kiroctl gui --qa-url`, which prints a one-time URL
+from the running app and is refused while stop-all is on or the caller's mission is paused.
+
+### Limits you should know about
+
+<Aside type="caution">
+- **Only pack agents can be stopped.** The pause hook is wired into `dev`, `coder` and
+  `scout`. A kiro-cli session started with any other agent has none of the pack's hooks,
+  so neither a pause nor stop-all can stop it. Diagnostics warns when the default agent
+  isn't one of the three.
+- **A second, unpaused agent that drives the app's UI could click Resume.** That is
+  visible in its transcript, and stop-all stops that agent too.
+- **An agent can't lift a pause from the shell, but a determined one isn't walled
+  in.** The gate refuses the obvious routes: removing the pause or stop-all file,
+  including by a glob, a variable, a `cd` or `find … -delete` (a glob, variable or
+  `find` is fine only under `telemetry`, `skills`, `steering`, `agents`, `prompts`,
+  `cache` or `logs` in the kiro home), the app's token log and mission API, and
+  `kiroctl missions`. A deliberately obfuscated command (`base64 … | sh`, an `eval`
+  of a built string, a script written first and then run) is not caught. See
+  [What `mission-state-protect` refuses](/capabilities/gates/#what-mission-state-protect-refuses-even-when-unarmed).
+- **Stop-all stops you too.** Your own interactive session refuses tool calls until you
+  resume. Lift it from the app or with `kiroctl missions resume-all`.
+- **The brake fails open.** If the pause hook itself crashes, can't read the index or
+  times out, it allows the call. A bug in it can't freeze every session on every machine;
+  a pause or stop-all file that is positively found always refuses.
 </Aside>
 
 ## Ready-to-use prompts
