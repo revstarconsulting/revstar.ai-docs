@@ -479,6 +479,70 @@ from the running app and is refused while stop-all is on or the caller's mission
   a pause or stop-all file that is positively found always refuses.
 </Aside>
 
+## Missions in a lane
+
+<Aside type="note" title="0.10.0 (beta)">
+New in 0.10.0, on the beta channel first. It is promoted to stable after one real lane mission on beta claims its lane,
+merges at least one PR and releases it.
+</Aside>
+
+Mission Control runs parallel **lanes**: lane-1 deploys `test` to `test-env`, lane-2 deploys `test-2` to `test-2-env`. A
+Resource Reservation Broker hands out each lane's environment, one holder at a time, and each lane's build checks that the
+PR it deploys was registered under the lease that holds the lane. A mission that works in a lane holds that lane's
+environment through the broker **for its whole run**: it claims it at kickoff, keeps it through the build, audit, QA and
+fix loop, and gives it back when the mission ends. A mission outside a lane behaves exactly as before.
+
+**Which repos count.** A repo is in a lane when it has `scripts/broker/registry.json` **and** a file named exactly
+`.mission-lane` at its root or one folder up (the root wins). The templates `.mission-lane.lane-1` / `.lane-2` don't
+count. The resource is the registry entry whose `branch` matches the lane file's `branch_base`, read fresh every time.
+This works for any repo that opts in, not only the Mission Control web repo.
+
+| When | What the pack does |
+| --- | --- |
+| `mission-state.js --init` | Claims each lane resource once (two repos on one lane share one claim). It asks `status` first, so a re-run `--init` that already holds the lane isn't queued behind itself. Prints a `lane:` line. |
+| Another mission holds the lane | The mission is **queued** and does no work. An interactive session refuses every tool call except `goal`, with *"WAITING for lane lane-2 (test-2-env): held by &lt;holder&gt;…"*. The supervised runners (`mission-run.sh` / `.ps1`, `mission-acp-driver.js`) wait between turns, checking every minute, and spend no agent turns. It lifts by itself once the lane is granted. |
+| Every 30 minutes | A heartbeat renews the lease. It runs in a **detached** process started from the prompt hook, so a prompt never waits on the network. The supervised runners also heartbeat between turns. |
+| `gh pr merge <N>` in a lane repo | The merge gate registers the PR under the mission's lease (`add-pr`) before the merge goes through. You never run a separate step. A bare `gh pr merge`, a PR URL, `cd repo && gh pr merge`, `bash -c '…'` and `gh api …/pulls/<N>/merge` are all seen. |
+| The mission ends | The lease is released. After a clean `--clear` the release waits until every registered PR's lane build has a passing gate decision, or 30 minutes after the last merge, whichever comes first, because the build gate passes a PR only while its lease is live. `--clear --failed`, **End** from the app, and the 168-hour expiry release at once. A queued mission leaves the queue. A failed release is logged and never blocks the clear. |
+
+**The actor** is `<lane_id>/<missionId>`, for example `lane-2/7f3c…`: the mission's UUID, kept across sessions. **AWS**
+is your own SSO profile, from `aws_profile` in `.mission-lane` (`revstar-test` today). There's no shared key.
+
+**Problems, and what the mission does:**
+
+- **No AWS session, or the broker doesn't answer.** The resource's own fail policy decides. Both lanes are fail-open:
+  the mission carries on *unreserved*, warns once with the fix (`aws sso login --profile revstar-test`), and retries
+  the claim at every heartbeat. A fail-closed resource makes the mission wait as if it were queued.
+- **The broker CLI can't start.** For example, the lane checkout has no `node_modules` (`npm ci` never ran). This is
+  reported as *broker unavailable (dependencies not installed)* and handled like the broker not answering. It is never
+  treated as "the broker refused you".
+- **The lane is lost.** The lease timed out (8 hours with no heartbeat, for example a mission paused overnight) or hit
+  its 72-hour hold limit. The mission re-claims at once and waits if another mission is queued. Merges are refused
+  until the lane is held again, and a PR whose build hasn't passed is registered again under the new lease. About
+  2 hours before the hold limit the agent is warned so it can finish a merge in progress.
+- **`gh pr merge --auto` is refused in a lane repo.** It would merge later, possibly after the lease is released.
+- **Direct pushes to the lane branches are refused.** `git-protect-gate` also protects the lane file's `branch_base`
+  and `pr_base`. A repo with a branch named `test` and no lane file is unaffected.
+
+**Seeing it.** `mission-state.js` (show and `--json`) and `kiroctl missions list` show the lane, its state
+(granted / queued / unreserved / lost / released) and the PRs registered. To ask the broker directly:
+
+```sh
+node <pack>/bin/mission-broker.js status --live     # the lane state, plus the broker's own answer
+node <pack>/bin/mission-broker.js claim             # recovery: claim (or re-check) now
+node <pack>/bin/mission-broker.js add-pr <N>        # register a PR by hand (merges do this themselves)
+node <pack>/bin/mission-broker.js release           # give the lease back now; the mission carries on unreserved
+```
+
+<Aside type="caution">
+- **Merges made outside the agent aren't registered.** The merge gate only sees `gh pr merge` run by a pack agent.
+  The web repo's `lane-promote.mjs --apply` merges the `test-2` → `test` PR from inside Node. Registering that PR is
+  the promotion tooling's job.
+- **`gh pr merge -R owner/repo` from outside the repo** isn't mapped to a lane. Run the merge from the lane checkout.
+- **The broker CLI is untested on Windows.** If it fails to start there, the mission degrades to unreserved on a
+  fail-open lane instead of blocking.
+</Aside>
+
 ## Ready-to-use prompts
 
 <Steps>
