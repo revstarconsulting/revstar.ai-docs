@@ -71,7 +71,7 @@ Only in a repo in a Mission Control lane, during an active mission (see
 | `the broker refused to register PR #N under this mission's lease on <resource>: <resource> is held by <holder> …` | Another mission holds the lane. | Nothing to force. The mission re-claims at its next heartbeat and waits if queued; `node <pack>/bin/mission-broker.js status --live` shows who holds it. |
 | `WAITING for lane <lane> (<resource>): held by <holder> …` | This mission is queued for the lane. | Wait. It lifts by itself when the broker grants the lane. |
 | `lane <lane> (<resource>) is lost … and the re-claim was not granted` | The lease timed out or hit its hold limit, and another mission got the lane. | Wait for the re-claim. |
-| `` `gh pr merge --auto` is refused in a lane repo `` | An auto-merge can land after the lease is released, so its build wouldn't be registered. | Wait for the checks, then `gh pr merge <N>` without `--auto`. |
+| `gh pr merge --auto is refused in a lane repo` | An auto-merge can land after the lease is released, so its build wouldn't be registered. | Wait for the checks, then `gh pr merge <N>` without `--auto`. |
 | `could not tell which PR this merges` | A bare `gh pr merge` or a branch name, and `gh pr view` couldn't find the PR number. | Merge by number: `gh pr merge <N>`. |
 
 When the broker can't be asked (no AWS session, unreachable, or the CLI can't start) on a fail-open lane, the merge goes

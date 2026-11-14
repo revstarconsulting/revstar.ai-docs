@@ -525,13 +525,13 @@ is your own SSO profile, from `aws_profile` in `.mission-lane` (`revstar-test` t
   and `pr_base`. A repo with a branch named `test` and no lane file is unaffected.
 
 **Seeing it.** `mission-state.js` (show and `--json`) and `kiroctl missions list` show the lane, its state
-(granted / queued / unreserved / lost / released) and the PRs registered. To ask the broker directly:
+(granted / queued / unreserved / lost / released) and the PRs registered. To ask the broker directly (merges register themselves; after `release` the mission carries on unreserved):
 
 ```sh
-node <pack>/bin/mission-broker.js status --live     # the lane state, plus the broker's own answer
-node <pack>/bin/mission-broker.js claim             # recovery: claim (or re-check) now
-node <pack>/bin/mission-broker.js add-pr <N>        # register a PR by hand (merges do this themselves)
-node <pack>/bin/mission-broker.js release           # give the lease back now; the mission carries on unreserved
+node <pack>/bin/mission-broker.js status --live  # state + the broker's answer
+node <pack>/bin/mission-broker.js claim          # claim or re-check now
+node <pack>/bin/mission-broker.js add-pr <N>     # register a PR by hand
+node <pack>/bin/mission-broker.js release        # give the lease back now
 ```
 
 <Aside type="caution">
