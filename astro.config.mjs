@@ -43,7 +43,7 @@ export default defineConfig({
           label: 'Workflows',
           items: [
             { label: 'The execution pipeline', slug: 'workflows/pipeline' },
-            { label: 'Missions & /goal', slug: 'workflows/missions' },
+            { label: 'Missions', slug: 'workflows/missions' },
             { label: 'QA & Design', slug: 'workflows/qa-and-design' },
             { label: 'Mobile app QA', slug: 'workflows/mobile-qa' },
             { label: 'Azure DevOps power', slug: 'workflows/azure-devops' },

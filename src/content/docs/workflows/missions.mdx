@@ -1,6 +1,6 @@
 ---
-title: Missions & the /goal loop
-description: Set a standing macro-goal for multi-phase work and drive it autonomously with the native /goal loop.
+title: Missions
+description: Set a standing macro-goal for multi-phase work and run it from a slash command in a dev chat that keeps itself going.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
@@ -26,38 +26,139 @@ All mission state is read and written through **`mission-state.js`** — never b
 hand-editing a file. The `mission-state-protect` gate enforces this: it refuses
 a direct edit of mission state and refuses clearing an unaudited mission.
 
-## The `/goal` loop
+## Running a mission in a `dev` chat
 
-:::caution[Turn on Workflows first]
-`/goal` is part of kiro-cli's Workflows feature, which is **off by default**. With it
-off, `/goal <task>` is sent as an ordinary prompt: the agent works on it once and nothing
-loops, with no error. Turn it on once:
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. Missions no longer use kiro-cli's `/goal`
+workflow loop. Client workflows skip agent hooks and the session-start hook, so the
+mission gates never ran inside one.
+</Aside>
+
+A mission runs in an ordinary interactive `dev` chat on kiro-cli's **engine v2**.
+`kiroctl open --run` launches it:
 
 ```sh
-kiro-cli settings chat.enableWorkflows true
+kiro-cli chat --agent-engine v2 --agent dev --model claude-opus-5.5 --effort medium --trust-all-tools
 ```
 
-Type `true` without quotes: a quoted `"true"` is saved as text, which kiro-cli ignores.
-Restart the session and check that `/experiment` lists **Workflows** as on.
-`kiroctl doctor` shows a `goal-loop` warning while it's off. If your account isn't
-offered Workflows, use `mission-acp-driver.js` (below) instead.
+To send a first message, add `--prompt`:
+
+```sh
+kiroctl open --dir ~/kiro/acme --run --prompt "/build-plan plan=plan.md"
+```
+
+Start the mission by typing a slash command in that chat:
+
+| Command | What it runs |
+| --- | --- |
+| `/build-plan [plan=<path>] [branch=<name>]` | Builds every phase of the plan. `plan` defaults to `plan.md`. |
+| `/fix-bugs doc=<path> [branch=<name>]` | Reproduces, fixes and QA-verifies every bug in the report. |
+| `/ci-qa-coverage [branch=<name>]` | Runs a full QA audit and catalogs the CI/CD test gaps. |
+
+You can also ask the `mission` skill: "set this as the mission". There is no `--max`.
+The app's **Shortcuts** drawer shows these lines, ready to paste into the chat.
+
+### The chat keeps itself going
+
+When a turn ends, the `dev` agent's Stop hook continues the chat with the next step.
+The messages start with `[mission-loop]` and show `auto-continue N/60`. The hook lets go when:
+
+- the mission is paused, or stop-all is on;
+- the mission is cleared;
+- the mission is `human-blocked`;
+- the agent's last message ends with a question;
+- 3 turns in a row pass with no new MET, state change or commit. This is **stalled**, and the hook sets `human-blocked`;
+- 60 continued turns, or 12 hours, pass since your last message. The hook sets `human-blocked`.
+
+**Type in the chat to steer it.** Your message resets the counters. If the loop set
+`human-blocked`, your message puts the mission back to `active`. To stop the chat from
+continuing, pause the mission (see [Stopping a mission](#stopping-a-mission)).
+
+:::caution[Engine v3 does not loop]
+On engine **v3** (the desktop Kiro client, or `chat.agentEngine: v3` in
+`~/.kiro/settings/cli.json`) the chat does not continue itself. Type `continue` after
+each turn. `kiroctl doctor` has an `agent-engine` row that warns on v3. To go back to v2:
+
+```sh
+kiro-cli settings chat.agentEngine v2
+```
+
+Launching with `kiroctl open --run` always passes `--agent-engine v2`.
 :::
 
-Kiro's native `/goal` command drives a mission autonomously: it keeps
-re-prompting the session until every success criterion is met, rather than
-stopping after one pass. Point it at a plan and it will keep working — building,
-auditing, running QA, fixing gaps — until the goal is genuinely done.
+### Headless fallback
 
-For fully hands-off runs, `mission-acp-driver.js` drives one persistent session
-and **self-heals**: if a model goes unavailable it retries then relaunches on the
+With no terminal, run the mission without a chat:
+
+```sh
+node <pack>/kiro/bin/mission-acp-driver.js
+```
+
+It stops for the same reasons as the chat, writes a heartbeat, refuses an ambiguous
+folder, and allows one live runner per mission. It drives one persistent session and
+**self-heals**: if a model goes unavailable it retries then relaunches on the
 next model in the chain, and a **hang watchdog** aborts and relaunches a turn that
-streams nothing for `--hang-timeout` minutes (default 10) — the safeguard for a
+streams nothing for `--hang-timeout` minutes (default 10), the safeguard for a
 wedged turn (e.g. a large parallel-write batch that never returns, ADO 145914).
 Relaunches reset the session context but the mission and task list persist, and a
 run that keeps hanging is capped so it terminates instead of looping forever.
 
-A person can end a `/goal` loop or a hands-off run from the app at any time. See
+`kiroctl missions` and the Missions drawer show a runner as **running**,
+**stopped** (with the reason) or **dead**.
+
+A person can end a chat or a headless run from the app at any time. See
 [Stopping a mission](#stopping-a-mission).
+
+## Execute a plan from the app
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first.
+</Aside>
+
+A project's page has an **Execute plan** button. It opens the **Execute a plan** drawer.
+
+1. The drawer lists the project's plan files: `plan*.md` at the project root and
+   `.kiro/plans/*.md`. Each has a badge: **grilled**, **imported** or **not grilled**.
+   You can also type a path, or use **Browse**.
+2. Select a plan. The app checks that the grill receipt matches this exact file, then
+   runs the access probes from the project's `qa-contract.json`. It shows what to fix.
+3. Click **Execute plan autonomously**. The app opens a terminal with a v2 `dev` chat
+   whose first message is `/build-plan plan=<path>`.
+
+The drawer refuses while a mission is already running in the project. A plan path cannot
+contain spaces.
+
+## Import a pre-grilled plan
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first.
+</Aside>
+
+Someone else may have grilled the plan already, for example on their own machine. The
+**Execute a plan** drawer imports it:
+
+1. Click **Import a pre-grilled plan** and pick the downloaded plan `.md`. **Browse**
+   starts in Downloads.
+2. Confirm the ADO work item id and title, and tick **This is the grilled plan for ADO #&lt;id&gt;**.
+3. Every access probe in the project's `qa-contract.json` must pass. You may untick
+   the probes this plan does not need. That narrows the access the plan requires.
+4. Import.
+
+The app copies the file to `<project>/.kiro/plans/<id>-<slug>.md`. If you narrowed the
+probes, it writes a `## Required Access` block into the copy. It then writes an
+**imported** grill receipt that records who confirmed it, when, and the file's hash.
+
+A project whose `qa-contract.json` has no `access` block cannot import. See
+[Access: you must declare it](#access-you-must-declare-it).
+
+The same import from a terminal:
+
+```sh
+node <pack>/kiro/bin/grill-receipt.js import --from <file> --root <project> \
+  --ado-id <N> --ado-title <title> --confirmed-by <name> \
+  [--narrow a,b] [--defer name="reason"] [--replace]
+node <pack>/kiro/bin/grill-receipt.js check <plan>      # prints grilled | imported | legacy
+```
 
 ## The base branch
 
@@ -82,7 +183,7 @@ so its QA counters don't restart mid-mission.
 moment you submit a prompt to the moment the agent's turn ends. The time between turns,
 while you read or type, is not counted, and neither is any time before `--init` or with no
 mission. A single turn over 4 hours is treated as hung and counted as 4. If a turn ends
-with no recorded start (some `/goal` and driver prompts), it counts from the previous
+with no recorded start (some driver prompts), it counts from the previous
 turn's end, with the same 4-hour cap, and is marked as inferred. When two sessions work one
 mission at once, overlapping time is counted once. Every session appends to the same
 receipt, `.kiro-turn.<missionId>.json`, so a resume or an ACP relaunch keeps adding to it.
@@ -329,7 +430,8 @@ A mission must never report success when it cannot actually finish. Three mechan
   resumes and finishes.
 - **No spinning.** The turn recorder fingerprints the ledger's MET-count each turn; if nothing has
   flipped MET across a grace turn, it signals **"no progress — hold"**, so the loop stops re-running the
-  same work against an unchanged blocker instead of burning iterations toward `--max`.
+  same work against an unchanged blocker. After 3 turns in a row with no new MET, state change or commit, the chat is **stalled** and the
+  loop sets `human-blocked`.
 - **A finished mission is cleared, not parked.** Once every acceptance criterion is MET, the turn
   recorder will not grant a clean stop — even `human-blocked-confirmed` is overridden back to *continue*
   ("done but not cleared") until the task list is reconciled and the mission is actually cleared. A
@@ -434,12 +536,11 @@ all agents), that the agent must not try to lift it, and where a person can lift
 app's Missions drawer, or `kiroctl missions resume <id>` / `resume-all` in a terminal.
 The one tool that still works is the `goal` completion tool.
 
-**A pause ends the `/goal` loop.** kiro-cli's loop can't be cancelled from outside, and a
-loop that keeps re-prompting into refused turns would burn its `--max` iterations for
-nothing. So the paused agent is told to call the `goal` tool to end the loop, and
-stop. The mission is kept. After you resume it, start a new `/goal` (the app's
-**Shortcuts** drawer has the line). With kiro-cli Workflows off there is no loop, and the
-pause simply refuses tools.
+**A pause stops the chat from continuing.** The `dev` agent's Stop hook does not continue
+a paused mission, or any chat while stop-all is on, so the chat goes quiet after its
+current turn. The mission is kept. After you **Resume** it, type in the chat or run the
+slash command again to start it going. On engine v3 there is no loop, and the pause
+simply refuses tools.
 
 **Hands-off runs stop too.** `mission-acp-driver.js` records itself in
 `~/.kiro/missions/<missionId>.driver.json`. On a pause or stop-all it cancels the running
@@ -545,26 +646,36 @@ node <pack>/bin/mission-broker.js release        # give the lease back now
 
 ## Ready-to-use prompts
 
+Type each line in a v2 `dev` chat, or pass it as `kiroctl open --run --prompt "<line>"`.
+
 <Steps>
 
-1. **Build a plan end-to-end.** Paste this to kick off a full multi-phase build
-   as a pre-approved, self-driving mission:
+1. **Build a plan end-to-end.** Runs every phase as a pre-approved, self-driving mission:
 
    ```text
-   /goal Implement ALL phases of the plan and set it as the mission using the mission skill (distill the macro-goal, create a to-do list covering EVERY phase, write the sentinel --preapproved). Pull the latest from the integration/staging branch first if the project has a remote. All phases are pre-approved: decide reversible forks yourself, log them, and do NOT stop to ask for permission. At the END of each phase, audit the built code against the plan and fill any gaps, THEN run the qa skill before starting the next phase. After all phases are built, run the qa skill scoped over the whole mission's diff (its fan-out covers every connected part; full QA only if the user explicitly asks or the mission text says `QA scope: full`), then set mission-state to audit and do a requirement-by-requirement audit against plan.md, fixing and re-QA-ing any gap. This goal is satisfied ONLY when every phase is built, all QA has passed, and mission-state.js has reached a clean audit and cleared. Do NOT call goal complete while any phase, gap, or QA failure remains. --max 50
+   /build-plan plan=plan.md branch=staging
    ```
 
-2. **Work a bug-fixing backlog from evidence.** Paste this to drive fixes for a
-   documented set of issues, verified against the running app rather than
-   trusted on say-so:
+   `plan` defaults to `plan.md`. `branch` defaults to `staging`, then the remote's
+   default branch, then `main`. A named branch that doesn't exist stops the run.
+
+2. **Work a bug-fixing backlog from evidence.** Drives fixes for a documented set of
+   issues, verified against the running app rather than trusted on say-so:
 
    ```text
-   /goal review the pdf files called "file path name" and view the screenshots in the pdfs in playwright mcp. then test these test cases yourself and if you can replicate the issue, resolve them. Do this for all of the issues in the document as well as the current task list items and verify each issue is resolved using QA protocol - if not fixed then keep trying to fix it and verify with playwright mcp until resolved. You must use a task list for each item and set a mission using the mission skill. Anything in the document is considered an active bug by the QA tester. Use sub-agents to review the videos and screenshots to avoid the 2000px limit in conversation. Also make sure to pull down the latest from staging before coding. --max 50
+   /fix-bugs doc=<path to the bug report> branch=staging
+   ```
+
+3. **Find the CI/CD test gaps.** Explores the repos, runs a full QA audit and writes
+   the regression-candidate catalog:
+
+   ```text
+   /ci-qa-coverage branch=staging
    ```
 
 </Steps>
 
 <Aside type="tip">
-Both prompts set `--max` as a hard ceiling on `/goal` iterations. If the mission
-genuinely needs more passes, re-run with a higher cap rather than removing it.
+There is no iteration cap to raise. The chat stops itself after 60 continued turns or
+12 hours since your last message. Type in the chat and it carries on.
 </Aside>
