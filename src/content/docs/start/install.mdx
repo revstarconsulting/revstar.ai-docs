@@ -78,9 +78,12 @@ and **git**, signed in once with `gh auth login` (or an SSH key loaded with
          your Linux username and password.
     4. In the Ubuntu window, run the **Stage 2** command the script printed:
        ```sh
-       git clone https://github.com/revstarconsulting/revstar.ai.git ~/revstar.ai \
+       git clone --branch stable https://github.com/revstarconsulting/revstar.ai.git ~/revstar.ai \
          && cd ~/revstar.ai && ./scripts/bootstrap-wsl.sh
        ```
+       (The script prints the exact command. Run it with `-Channel beta` and it
+       prints the beta one instead: `--branch v1` and `KIRO_CHANNEL=beta`. See
+       [Release channels](#release-channels--stable-vs-beta).)
        That installs Node, `kiro-cli`, the registry and the pack inside WSL. (Run
        `gh auth login` in Ubuntu first if the clone is refused.)
 
@@ -153,7 +156,7 @@ with `gh auth login` or your SSH key, then clone and run the bootstrap below.
   <TabItem label="macOS" icon="apple">
     ```sh
     # git comes from the Command Line Tools (xcode-select --install) if missing
-    git clone https://github.com/revstarconsulting/revstar.ai.git
+    git clone --branch stable https://github.com/revstarconsulting/revstar.ai.git
     cd revstar.ai
     ./scripts/bootstrap-macos.sh              # arms the four safe gates; --arm-safe is accepted and does the same
     ```
@@ -162,7 +165,7 @@ with `gh auth login` or your SSH key, then clone and run the bootstrap below.
   <TabItem label="Linux / WSL" icon="linux">
     ```sh
     sudo apt-get update && sudo apt-get install -y git   # if git is missing
-    git clone https://github.com/revstarconsulting/revstar.ai.git
+    git clone --branch stable https://github.com/revstarconsulting/revstar.ai.git
     cd revstar.ai
     ./scripts/bootstrap-wsl.sh                # add --enable-passwordless-sudo to opt in (below)
     ```
@@ -179,11 +182,22 @@ with `gh auth login` or your SSH key, then clone and run the bootstrap below.
     otherwise launch the distro once (to create your Linux user). Then run the
     **Stage-2** command it prints inside WSL — a clone + `bootstrap-wsl.sh`:
     ```sh
-    git clone https://github.com/revstarconsulting/revstar.ai.git ~/revstar.ai \
+    git clone --branch stable https://github.com/revstarconsulting/revstar.ai.git ~/revstar.ai \
       && cd ~/revstar.ai && ./scripts/bootstrap-wsl.sh
     ```
   </TabItem>
 </Tabs>
+
+<Aside type="note" title="Pick the channel: stable by default">
+The bootstrap clones **both** repos on the branch for your [release channel](#release-channels--stable-vs-beta):
+`stable` (the default) or `v1` for beta. Choose beta with `KIRO_CHANNEL=beta` in front of the
+script (macOS, Linux / WSL) or `-Channel beta` on `bootstrap-windows.ps1`. The GitHub default
+branch is `v1`, so a plain `git clone` with no `--branch` lands on beta; that is why the
+commands above name `stable`. `KIRO_PACK_BRANCH` and `KIRO_REGISTRY_BRANCH` override the branch
+for one repo. Running a bootstrap again on a clone that already exists only fast-forwards it
+and does not switch branches; use `kiroctl update` for that (see
+[Updating later](#6-updating-later)).
+</Aside>
 
 <Aside type="tip" title="Already signed in with gh? Grab a single script without a full clone">
 With `gh` installed and authenticated you can pull just one bootstrap script:
@@ -226,9 +240,11 @@ Already have Node + Kiro CLI (+ WSL on Windows)? Skip to the manual steps below.
 RevStar.ai ships as two repos, cloned **side by side**:
 
 ```sh
-git clone https://github.com/revstarconsulting/revstar.ai.git
-git clone https://github.com/revstarconsulting/revstar.ai-registry.git
+git clone --branch stable https://github.com/revstarconsulting/revstar.ai.git
+git clone --branch stable https://github.com/revstarconsulting/revstar.ai-registry.git
 ```
+
+For the beta channel, use `--branch v1` on both instead.
 
 `revstar.ai` holds the `kiroctl` CLI and installers; `revstar.ai-registry` holds the
 content pack (agents, skills, gates, steering).
@@ -242,7 +258,7 @@ desktop launcher**. Always `git clone`.
 <Aside type="tip" title="Let your Kiro do it">
 You can hand this to an existing Kiro session:
 
-> `git clone` https://github.com/revstarconsulting/revstar.ai.git and
+> `git clone --branch stable` https://github.com/revstarconsulting/revstar.ai.git and
 > https://github.com/revstarconsulting/revstar.ai-registry.git side by side, then from
 > inside `revstar.ai` run the installer for my OS with
 > `KIRO_REGISTRY_ROOT=../revstar.ai-registry`. Then verify with `kiroctl doctor` and
@@ -427,7 +443,18 @@ kiroctl update
 ```
 
 A verified pull of both repos + reinstall — bolt-on, never subtract, so your own
-customizations are preserved. Restart your Kiro session afterward so steering,
+customizations are preserved. Both repos are put on your channel's branch first
+(`stable`, or `v1` for beta), then fast-forwarded. It never stashes, resets or forces
+anything: uncommitted changes to tracked files, or local commits that aren't on the
+remote branch, stop the update with a message and change nothing.
+
+| Flag | What it does |
+| --- | --- |
+| `--check` | Report whether an update is available; change nothing. |
+| `--channel <beta\|stable>` | Switch to that [release channel](#release-channels--stable-vs-beta) and remember it. |
+| `--yes` | Answer yes to the "Move back to stable?" question below without asking. |
+| `--registry <path>` | Point at the registry clone if it moved since install. |
+ Restart your Kiro session afterward so steering,
 skills and MCP servers reload. (On Windows, run it inside WSL.)
 
 If you aren't signed in to Mission Control yet, the update ends by opening the
@@ -461,8 +488,40 @@ version, and the GUI header shows them too.
 Existing installs made before channels existed continue to track **beta** (the
 original line) — there is no silent migration. New features land on **beta**
 first; anything not yet promoted to stable is marked *beta* on the page. Switch
-channels by re-installing with `--channel beta` or `--channel stable`.
+channels with `kiroctl update --channel beta` or `kiroctl update --channel stable`
+(or by re-installing with `--channel`).
 </Aside>
+
+### A channel is a branch
+
+Both repos, `revstar.ai` and `revstar.ai-registry`, have a `stable` branch and a
+`v1` branch. The channel only means something if your clones are on its branch:
+
+| Channel | Branch (both repos) |
+| --- | --- |
+| `stable` | `stable` |
+| `beta` | `v1` |
+
+Older bootstrap scripts cloned the default branch, `v1`, so a "stable" install could be
+running beta code without saying so. Now:
+
+- **`kiroctl update`** puts both repos on the channel's branch and then fast-forwards
+  them. If a repo has uncommitted changes to tracked files, or has diverged from the
+  remote branch, it stops and changes nothing; fix that yourself and run it again.
+- **A stable install found on `v1`** is never moved silently, because that drops beta
+  features. At a terminal, `kiroctl update` asks
+  `Move back to stable? This drops beta features. [y/N]`. Answer **n**, or run it where
+  there is no terminal (the app's update, for example), and it stays on `v1` and records the
+  channel as **beta**, so `kiroctl version` tells the truth. `kiroctl update --yes` says yes
+  for you.
+- **`kiroctl doctor`** has a `channel-branch` row. It warns when a checkout isn't on its
+  channel's branch and prints the command that fixes it.
+
+```sh
+kiroctl update --channel stable        # asks first if it would leave beta behind
+kiroctl update --channel stable --yes  # move without asking
+kiroctl update --channel beta
+```
 
 ## Next step
 
