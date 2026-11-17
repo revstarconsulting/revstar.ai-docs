@@ -91,7 +91,7 @@ Launching with `kiroctl open --run` always passes `--agent-engine v2`.
 With no terminal, run the mission without a chat:
 
 ```sh
-node <pack>/kiro/bin/mission-acp-driver.js
+node <pack>/bin/mission-acp-driver.js
 ```
 
 It stops for the same reasons as the chat, writes a heartbeat, refuses an ambiguous
@@ -154,10 +154,10 @@ A project whose `qa-contract.json` has no `access` block cannot import. See
 The same import from a terminal:
 
 ```sh
-node <pack>/kiro/bin/grill-receipt.js import --from <file> --root <project> \
+node <pack>/bin/grill-receipt.js import --from <file> --root <project> \
   --ado-id <N> --ado-title <title> --confirmed-by <name> \
   [--narrow a,b] [--defer name="reason"] [--replace]
-node <pack>/kiro/bin/grill-receipt.js check <plan>      # prints grilled | imported | legacy
+node <pack>/bin/grill-receipt.js check <plan>      # prints grilled | imported | legacy
 ```
 
 ## The base branch
