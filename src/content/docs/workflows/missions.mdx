@@ -468,6 +468,14 @@ after this shipped. A mission already running, or started from an older grilled 
 the rules it started with.
 </Aside>
 
+**The plan is frozen when the mission starts.** `--init` records the plan's hash. If the plan
+file changes afterwards and no grill receipt covers its new text, `--blocker`, `--plan-ref` and
+`--clear` are refused: an agent can't rewrite its own instructions (for example, declare a
+dependency whose check always fails and park the mission on it). While a mission is active, the
+agent also can't write a grill receipt (`grill-receipt.js write` / `import`, or a file under
+`.kiro/grill-receipts/`). To change the plan mid-mission, re-grill it yourself from your own
+terminal, or pause or end the mission first.
+
 A criterion that paraphrases the plan can quietly change a number. The plan says a canary
 takes 10% of traffic, the criterion says "canary works", and the build uses 10x. Under rules
 v2 each criterion points at the plan's own words and the code that delivers them, and
