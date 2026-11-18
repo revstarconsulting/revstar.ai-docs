@@ -104,7 +104,11 @@ Relaunches reset the session context but the mission and task list persist, and 
 run that keeps hanging is capped so it terminates instead of looping forever.
 
 `kiroctl missions` and the Missions drawer show a runner as **running**,
-**stopped** (with the reason) or **dead**.
+**stopped** (with the reason) or **dead**. A mission chat shows the same way, as a
+chat loop: for example `chat loop running (continued 7 turns, last event 12 s ago)` or
+`chat loop stopped: stalled`. A chat loop is **dead** when its chat process is gone.
+`kiroctl doctor` has a `mission-loops` row that warns about any active mission whose
+chat or runner is dead. Run `kiroctl open --run` in that folder to continue it.
 
 A person can end a chat or a headless run from the app at any time. See
 [Stopping a mission](#stopping-a-mission).
