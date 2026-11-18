@@ -293,6 +293,24 @@ autonomous kickoff therefore stops rather than running misconfigured. The ack is
 **separate from `--preapproved`** — pre-approving reversible decisions never
 silently waives a missing QA environment or an ungrilled plan.
 
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. **Waiving a check is a person's decision, and it
+stays visible.**
+
+- `--ack-skipped` and `--force` on `--init` are **refused** for a `--preapproved` mission, when
+  stdin is not a terminal (an agent's shell tool, a script and a hook have none), and from a
+  session on `dev`, `coder` or `scout`. The refusal names which of those applies. Run the
+  `--init` from your own terminal, without `--preapproved`. The shell gate refuses the same
+  flags in an agent's shell call; this is the half that holds when the hook is absent.
+- Each check a person waives becomes the acceptance criterion `skipped:<check>` (`skipped:qa`,
+  `skipped:grill-me`, `skipped:access`, `skipped:bug-report`). It starts as `GAP`, records who
+  acknowledged it (`ackedBy`: `git config user.name`, else the operating-system user) and when,
+  and can never be set MET or removed. The mission can then only end **PARTIAL**, and the
+  honest-exit record names each skip (`skipped: [{ check, ackedBy, at }]`) and who decided it.
+- A gated mission whose only criteria are `skipped:*` / `access-descoped:*` ones **cannot be
+  cleared**: nothing shows the plan was built. Decompose the plan with `--accept-add` first.
+</Aside>
+
 ### Access: you must declare it
 
 **Access findings are tiered by reversibility.** A *missing* credential or login
@@ -311,6 +329,16 @@ On an autonomous run the agent never self-waves an access gap; it surfaces for y
 proceed-partial / hold decision. The verdict is one of `ACCESS-OK | ACCESS-PARTIAL |
 ACCESS-BLOCKED | ACCESS-UNVALIDATED`. An undeclared contract is `ACCESS-UNVALIDATED`.
 The receipt records `contractDeclared: true|false`.
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. **A descoped dependency's probe still runs.** When the
+plan descoped a `## Required Access` dependency, `--init` runs the contract's probe that covers
+it and records the result on the `access-descoped:<id>` criterion as
+`probeAtDescope: { status, detail, at }` (`PASS`, `FAIL`, `NO-PROBE` or `ERROR`). When the probe
+passes, `--init` prints `DESCOPED <id>: its probe PASSES now -- descoping a working dependency
+drops work that could be done`. The criterion stays `GAP` and can never be MET either way, so
+the mission still ends PARTIAL; the probe result only makes a needless descoping visible.
+</Aside>
 
 **What counts as declared.** Either of:
 
@@ -574,6 +602,8 @@ gate is armed, and a refused clear exits 1, keeps the mission and sends nothing:
   (see [The completion verifier](#the-completion-verifier)). A mission with nothing for it to read
   is not held to it.
 - **A mission with no criteria is refused** when it was started with `--kind`, `--plan` or
+  `--bug`: decompose the plan with `--accept-add` first. **0.11.0 (beta).** A ledger that holds
+  *only* `access-descoped:*` / `skipped:*` criteria counts as having none.
   `--bug`: decompose the plan with `--accept-add` first.
 
 Two things do not block a clear. The exit is then **PARTIAL**, not COMPLETE:
@@ -740,6 +770,34 @@ A mission must never report success when it cannot actually finish. Three mechan
   `references/autonomy-completion.md`: decide reversible forks yourself and log them, surface only genuine
   one-way doors, and never hand back a mixed "decisions for you" list — **high blast radius ≠ one-way** (a
   fleet flag-flip with a tested rollback is a two-way door).
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. **The BLOCKED exit names a declared dependency.**
+`mission-state.js --set human-blocked-confirmed` is refused unless it carries
+`--blocker <id>`, and the script checks the id before it changes the state:
+
+- The id must be a dependency the governing plan **declared**: an entry of its `## Dependencies`
+  block, or a `## Required Access` dependency. An id the plan never declared is refused with
+  *"a decision the plan already resolved cannot be deferred; only a declared dependency whose
+  check fails can block"*, followed by the list of declared ids. A decision the plan states in
+  prose, without declaring a dependency, cannot be parked on a person.
+- Its check must **fail right now**. A `## Dependencies` check is run (60 s cap); a
+  `## Required Access` dependency is checked through the contract probe that covers it. A check
+  that passes is refused: *"that dependency is satisfied right now, so it is not what blocks
+  you"*. A dependency the plan descoped, or a Required Access id no probe covers, is refused too.
+  A `## Dependencies` entry with no `check` is a manual dependency: it is accepted, and recorded as
+  manual and unverified.
+- The id, where it was declared, the tail of the check's output and the time are written to
+  `<sentinel>.blocked.json`. `show`, `--json`, `--verify-status` and the
+  honest-exit record (`blockedBy`) name it. `--yield human-blocked-confirmed` needs the same
+  `--blocker`.
+- A mission with **no governing plan** (an advisory mission, or a bug mission with no plan) has no
+  declared dependency to name. It gives `--blocker-reason "<what stops you, at least 15
+  characters>"` instead; the reason is recorded as **unverified** with the time. A mission whose
+  plan file has gone missing cannot use this.
+
+The turn recorder and the loop treat `human-blocked-confirmed` as before; only reaching it changed.
+</Aside>
 
 ## Reversibility: when to stop and ask
 
