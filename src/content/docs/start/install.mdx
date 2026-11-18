@@ -158,7 +158,7 @@ with `gh auth login` or your SSH key, then clone and run the bootstrap below.
     # git comes from the Command Line Tools (xcode-select --install) if missing
     git clone --branch stable https://github.com/revstarconsulting/revstar.ai.git
     cd revstar.ai
-    ./scripts/bootstrap-macos.sh              # arms the four safe gates; --arm-safe is accepted and does the same
+    ./scripts/bootstrap-macos.sh              # arms the default gates; --arm-safe is accepted and does the same
     ```
     No Homebrew required — `fnm` installs Node per-user.
   </TabItem>
@@ -295,7 +295,7 @@ session context, remind you of updates, and record the turn receipts that measur
 mission's autonomous hours. `--arm-safe` is still accepted and does the same. The
 blocking gates stay inert until you arm them. To keep a safe gate off for good, create
 `~/.kiro/gates/<name>.disabled`; installs and `kiroctl update` never re-arm it. See
-[Gates → The four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
+[Gates → The gates armed by default](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
 `install.ps1` arms the same four.
 
 ### What the bootstrap does

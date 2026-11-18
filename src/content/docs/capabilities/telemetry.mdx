@@ -155,7 +155,7 @@ be reached, the app keeps showing the last list with a short notice.
 
 `hours_autonomous` on a `mission_cleared` event is the **agent's working time** on the
 mission, measured by the `mission-turn-recorder` hook (which the installer now arms by
-default; see [the four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default)).
+default; see [the gates armed by default](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default)).
 
 - Each turn counts from the moment your prompt is submitted to the moment the turn ends.
   The running turn counts up to the clear.
@@ -263,7 +263,7 @@ It checks:
 - **Connections:** the Mission Control self-repair (sign-in refresh, ingest key, project, send).
 - **Mission Control & telemetry:** sign-in, endpoint, how many skill uses were ever recorded, what's queued, the last send, the last heartbeat.
 - **Project attribution:** your Mission Control projects, the project each of your app projects and repos reports to and why, whether it matches the repo, and the recently reported repo → project pairs. Each folder shows its status, and for a folder with no repo, why `git` found none.
-- **Safe hooks:** one row each for `mission-inject`, `mission-turn-recorder`, `session-context` and `update-notify`: *armed*, *off by choice* (a `.disabled` file in `~/.kiro/gates/`) or *not armed*, and what you lose while a hook is off. See [the four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
+- **Safe hooks:** one row each for `mission-inject`, `mission-turn-recorder`, `session-context`, `update-notify` and (0.11.0, beta) `mission-state-protect`: *armed*, *off by choice* (a `.disabled` file in `~/.kiro/gates/`) or *not armed*, and what you lose while a hook is off. See [the four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
 - **Doctor:** every `kiroctl doctor` row.
 - **Live Kiro session test** (optional, about 15 seconds each): runs a real `dev` session that reads a skill, then confirms the skill use was recorded. It runs in your normal home if Kiro is logged in there, and in the first client you're signed in to, from one of that client's projects (the setup you actually work in). It also catches Kiro refusing the read (`workspace-escape`). Kiro logins are kept per client, so "not logged in outside client projects" is normal.
 

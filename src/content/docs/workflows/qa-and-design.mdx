@@ -164,7 +164,7 @@ for you (surface + interaction inventories → `qa-registry-merge.js` → the pr
 manifest). You can also run them by hand from the project root while iterating on
 the contract.
 
-**3. Arm the gates.** The four safe hooks are already armed by the installer. The blocking gates are inert until an enable flag exists (the exceptions are the always-on
+**3. Arm the gates.** The four safe hooks and, from 0.11.0 (beta), `mission-state-protect` are already armed by the installer. The blocking gates are inert until an enable flag exists (the exceptions are the always-on
 `telemetry-emit` hook, `mission-pause` and, wherever Mobile Next is configured, `mobile-guard` and `mobile-sweep`) — globally at
 `$KIRO_HOME/gates/<gate>.enabled` or per-project at `<project>/.kiro/gates/`. Arm
 one at a time:
