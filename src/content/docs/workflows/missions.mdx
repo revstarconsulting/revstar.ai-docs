@@ -449,7 +449,7 @@ v2 each criterion points at the plan's own words and the code that delivers them
 receipt. `--init` copies it into the mission's gate sidecar once. A receipt from before the field,
 a bugfix mission, or a mission with no plan reads as rules 1. The version never changes mid-mission,
 even if the plan is re-grilled. The honest-exit record carries `rulesVersion`, and for a rules 1
-mission `rulesSkipped` (`plan-ref`, `policy-values`) with `rulesSkippedReason` (`plan grilled before
+mission `rulesSkipped` (`plan-ref`, `policy-values`, `phases`) with `rulesSkippedReason` (`plan grilled before
 rules v2`, or `no plan`), and the console line says which rules were not applied.
 
 **`--accept-add --plan-ref "<exact plan sentence>"`.** Required under rules v2. The sentence must
@@ -488,6 +488,69 @@ doesn't hold, names a file that doesn't exist, or still says `-` or `TBD` refuse
 names the row. The build fills each location in as it goes. A plan with no such section has nothing
 to check, and `--clear --failed` is not held to it.
 
+### Phases (rules v2)
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. Like the rest of rules v2 it applies only to a mission
+whose plan was grilled after this shipped, and only when the plan has phase headings.
+</Aside>
+
+Without phases, a build can leave a phase's QA for the end and carry on into the next one. Under
+rules v2 `mission-state.js` makes the phases a sequence it enforces itself, whether or not any gate
+is armed.
+
+**The plan's phases are read once.** At `--init` the script reads the plan's `### Phase N — <name>`
+headings (a hyphen or a colon works in place of the dash, and N can be 0) and the `F<N>.<m>`
+features listed under each, and stores them in the mission's gate sidecar. A feature id of another
+phase mentioned in passing, or anything inside a code fence, is not a member. A plan with no phase
+headings stores none, and nothing below applies.
+
+**Every criterion names its phase.** `--accept-add` needs `--phase N` naming one of the plan's
+phases (the refusal lists them), and an id that looks like `F<N>.<m>` must carry its own `N`.
+`access-descoped:*`, `skipped:*` and `sop-standards` belong to no phase.
+
+```sh
+node <pack>/bin/mission-state.js --accept-add --id F2.1 --phase 2 \
+  --req "The admin page shows the teacher" --plan-ref "The admin page shows the teacher."
+```
+
+**Closing a phase.** When a phase is built and its scoped [QA run](/workflows/qa-and-design/#scoped-runs-the-change-and-everything-connected-to-it) has ended, close it:
+
+```sh
+node <pack>/bin/mission-state.js --phase-end 2
+```
+
+It is refused unless:
+
+- every criterion of the phase is MET (each one already needed its plan sentence and cites), and
+- no lower phase that has criteria is still open, and
+- when the mission's changes reach a page, endpoint or job, a scoped run **ended** with nothing
+  failed **after the last code change**. The checks are the QA fan-out gate's own: every target
+  tested or validly waived, none failed or stale, the coverage needs and minimum sample met. On top
+  of that the run must be newer than the last change to any file. An edit to a file that no target
+  depends on still outdates it, so a one-line fix after the run needs a new run. A phase whose
+  changes reach no page, endpoint or job needs no run.
+
+A closure is written to `.kiro-mission.<sid>.phases.json` (the phase, the time, the run, the last
+code change), and only `--phase-end` writes it; the shell and file gates refuse every other writer
+like any other mission file. Closing a closed phase does nothing and says so. A closed phase that
+later loses a MET, or gets a new criterion, shows as **REOPENED** and needs closing again. A phase
+with no criteria has nothing to close and holds nothing up.
+
+**The order is strict.**
+
+- `--accept-set ... --verdict MET` on a criterion of phase N is refused while a lower phase that has
+  criteria is not closed. The refusal names that phase and what to run. Recording a GAP is still
+  allowed.
+- `--set audit` does not start the completion verifier while a phase is open. It names the phase.
+- `--clear` is refused unless every phase that has criteria is closed. `--clear --failed` is not
+  held to it.
+
+The plain `mission-state.js` show and `--accept-show` list each phase as open, closed or reopened with its MET
+count, and the mission chat's next-step prompt says so when the lowest open phase has every
+criterion MET: run its scoped QA, then `--phase-end N`. The honest-exit record carries a `phases`
+summary, and a rules 1 mission lists `phases` among its `rulesSkipped`.
+
 ### Clearing a mission
 
 <Aside type="note" title="0.11.0 (beta)">
@@ -504,6 +567,9 @@ gate is armed, and a refused clear exits 1, keeps the mission and sends nothing:
   wait for the verifier, then clear.
 - **The ledger must be complete.** Every criterion is MET with cited evidence, and a count
   criterion has reached its target. The refusal lists each unmet criterion and the next step.
+- **Every plan phase that has criteria must be closed** (rules v2, a plan with phase headings; see
+  [Phases](#phases-rules-v2)). Checked right after the ledger and before the Policy Values, the
+  verifier and the QA fan-out gate.
 - **The completion verifier must have passed** for this ledger and this code
   (see [The completion verifier](#the-completion-verifier)). A mission with nothing for it to read
   is not held to it.
