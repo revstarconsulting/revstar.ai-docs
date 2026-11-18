@@ -432,6 +432,62 @@ needs a cited artifact.
 Before a mission clears, it refreshes and commits the shared project context
 (`.kiro/context/`) so the next developer inherits the current state.
 
+### Tying criteria to the plan (rules v2)
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. It applies only to a mission whose plan was grilled
+after this shipped. A mission already running, or started from an older grilled plan, keeps
+the rules it started with.
+</Aside>
+
+A criterion that paraphrases the plan can quietly change a number. The plan says a canary
+takes 10% of traffic, the criterion says "canary works", and the build uses 10x. Under rules
+v2 each criterion points at the plan's own words and the code that delivers them, and
+`mission-state.js` checks both itself, whether or not any gate is armed.
+
+**The rule version.** `grill-receipt.js write` (and `import`) records `rules: 2` in the plan's
+receipt. `--init` copies it into the mission's gate sidecar once. A receipt from before the field,
+a bugfix mission, or a mission with no plan reads as rules 1. The version never changes mid-mission,
+even if the plan is re-grilled. The honest-exit record carries `rulesVersion`, and for a rules 1
+mission `rulesSkipped` (`plan-ref`, `policy-values`) with `rulesSkippedReason` (`plan grilled before
+rules v2`, or `no plan`), and the console line says which rules were not applied.
+
+**`--accept-add --plan-ref "<exact plan sentence>"`.** Required under rules v2. The sentence must
+appear in the plan the mission was started from. Whitespace runs, markdown `**` and backticks are
+ignored in the comparison, the words and numbers are not. A sentence that is not in the plan is
+refused with exit 1, naming it. Under rules 1 the flag is optional and checked when given. The
+sentence is stored as the criterion's `planRef`.
+
+```sh
+node <pack>/bin/mission-state.js --accept-add --id canary \
+  --req "Canary takes 10% of traffic" --plan-ref "The POC uses 10% of traffic."
+```
+
+**`--accept-set --verdict MET --cite path:line[,path:line...]`.** Required under rules v2, and under
+any rules when the criterion has a `planRef`. Paths are relative to the mission folder (or to a
+repository the mission has learned) or absolute.
+
+- Every file and line must exist.
+- Every **number** and every **quoted value** (`"..."`, `` `...` `` or `'...'`) in the plan
+  sentence must appear within 15 lines of a cite, on either side.
+- Numbers are compared as numbers. `10` matches `10.0` and `10.00`. A percentage matches `10%`
+  or `10 percent`, but not `10x`, `10ms` or `0.10`. Quoted values are exact text. List markers
+  and feature ids such as `F3.2` are not numbers.
+- A miss is refused with exit 1, naming the value and the cites it was not near. The criterion
+  stays as it was.
+
+With the plan saying `10%`, the cite `pct = 10x` is refused and `pct = 10 # percent` is accepted.
+The ledger stores each cite with the path, the line and a hash of the 31-line window around it, and
+`--accept-show` prints the plan sentence and the cites.
+
+**The Policy Values table at the clear.** grill-me writes a `## Policy Values` table into the plan
+(`| name | value | plan line | code location |`) with the code location left as `-`. Under rules v2,
+`--clear` checks every row: its value must appear at its code location, within 15 lines of the line
+given or anywhere in the file when only a path is given, numbers compared as numbers. A row that
+doesn't hold, names a file that doesn't exist, or still says `-` or `TBD` refuses the clear and
+names the row. The build fills each location in as it goes. A plan with no such section has nothing
+to check, and `--clear --failed` is not held to it.
+
 ### Clearing a mission
 
 <Aside type="note" title="0.11.0 (beta)">

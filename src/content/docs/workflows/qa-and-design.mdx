@@ -289,7 +289,11 @@ On top of the two verdicts, the `qa-report-gate` now refuses a report when:
   you can describe is a FAIL;
 - a run with change items doesn't cite its **adversarial-pass receipt**: the agent keeps
   trying to break the *changed* items until two rounds in a row find nothing new
-  (`qa-adversarial-receipt.js record --round <n> --findings <k>`);
+  (`qa-adversarial-receipt.js record --round <n> --tried "<what>" --result "<what happened>" --findings <k>`).
+  **0.11.0 (beta):** each round now says what was tried (`--tried`, 20 characters or more) and what
+  happened (`--result`, 10 or more), and `--fixed` records the commit or note for a round with findings.
+  An empty round counts only if it carries a `tried`, so a receipt recorded by an older pack, whose rounds
+  have none, reads as not finished and needs two new rounds;
 - a full run cites no **coverage receipt file**, or one made with loosened thresholds.
 
 These checks apply to QA runs started after the update; earlier runs keep the old rules.
