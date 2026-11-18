@@ -500,9 +500,13 @@ off.
 gate is armed, and a refused clear exits 1, keeps the mission and sends nothing:
 
 - **The state must be `audit`.** From `active`, `agents-wait`, `deploy-wait` or either
-  `human-blocked` state it refuses and names the state. Set `audit`, run the audit, then clear.
+  `human-blocked` state it refuses and names the state. Record every criterion, set `audit`,
+  wait for the verifier, then clear.
 - **The ledger must be complete.** Every criterion is MET with cited evidence, and a count
   criterion has reached its target. The refusal lists each unmet criterion and the next step.
+- **The completion verifier must have passed** for this ledger and this code
+  (see [The completion verifier](#the-completion-verifier)). A mission with nothing for it to read
+  is not held to it.
 - **A mission with no criteria is refused** when it was started with `--kind`, `--plan` or
   `--bug`: decompose the plan with `--accept-add` first.
 
@@ -537,6 +541,100 @@ session on `dev`, `coder` or `scout` unless `KIROCTL_PERSON_ACTION=1` is set, wh
 **End** in the app and `kiroctl missions end` set themselves. A plain terminal, where no
 agent can be found, is allowed. The variable stops an agent failing its own mission by
 reflex; it doesn't stop one that sets it on purpose.
+
+### The completion verifier
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. Before, nothing but the agent itself checked that a
+criterion marked MET was true of the code.
+</Aside>
+
+The agent that built the work also decides when it is done. The completion verifier is a second
+reader. When the audit is clean, a separate model run reads the plan's own sentences next to
+the code the criteria cite, and says whether they agree. The mission clears only after it
+does.
+
+**When it starts.** `mission-state.js --set audit` starts it once the audit is mechanically
+clean: every criterion MET or by design, every cite still pointing at a real line that still holds
+the plan's numbers and quoted values, and every Policy Values row holding. If any of that
+fails, `--set audit` prints the misses, starts no run, and the state still becomes `audit`. Fix
+them and `--set audit` again. When it does start, it prints
+`VERIFY started (run N/10) -> <receipt path>` and returns at once. The run is a detached process,
+so the mission loop and the headless runner carry on or wait for it without spending a turn.
+
+Record every criterion MET (with `--cite`) **before** `--set audit`: that is what starts the
+verifier. Setting `audit` early only prints what is still missing.
+
+**What it sees.** One prompt, and nothing else: for each MET criterion, its id, its
+requirement, the plan sentence it came from, and the 15 lines either side of each cite, read
+from disk at that moment. A criterion with no plan sentence gets the mission text, or for a
+bugfix mission the bug report. Criteria that were skipped or descoped by design, and
+`sop-standards`, are not sent. The model has no tools, no repository, and runs in an empty temporary
+folder under the `scout` agent with every tool untrusted, so a secret in a file the criteria don't
+cite never reaches it. The model is `claude-sonnet-5.5` (`KIRO_VERIFY_MODEL` changes it).
+
+**What it must show.** For every cite the model answers with a check: the code text it read
+(`found`), the plan value it compared that with (`plan`), and a `match` or `mismatch`. A
+criterion is accepted only when its verdict is `match` and every cite has a check with a
+quote that is really in the lines it was given. These are rejected, with their reason:
+
+| Reason | Meaning |
+|---|---|
+| `bare agreement: no per-line check` | It said "match" without quoting the code for a cite. |
+| `quoted text not in the cited lines` | The quote isn't in the lines it was shown, so it was made up. |
+| `mismatch: <finding>` | It found the code says something else than the plan. |
+| `missing from the answer` | It left the criterion out. |
+
+An answer that can't be read (no JSON block, a non-zero exit, or no reply in 15 minutes) makes the
+run an **error**. No criterion is counted as rejected, but the run still counts toward the cap.
+
+A mission whose criteria have no cites at all (a plan grilled before rules v2) is verified too: the
+model reads each requirement against the criterion's evidence text, and must quote it.
+
+**The verdict.** `mission-state.js --verify-status [--json]` prints it, and exits 0 only for `pass`:
+
+| Status | Meaning |
+|---|---|
+| `pending` | The run is still going. |
+| `pass` | The latest run accepted every criterion, for this ledger and this code. |
+| `stale` | It passed, but a criterion or a cited line has changed since. Run `--set audit` again. |
+| `fail` | It rejected criteria; they are listed with their reasons. Fix them, then `--set audit` again. |
+| `error` | The run gave no usable answer. `--set audit` again. |
+| `none` | No run yet. |
+
+`--clear` is refused unless the status is `pass`, and says which status and what to do next.
+A change anywhere in a cited 31-line window, or to any criterion, makes an earlier pass `stale`.
+Changing a line outside every cited window does not. While the pass is current, `--set audit`
+starts no new run.
+
+**Three rejections, then a person.** Each time the verifier rejects a criterion it is counted. The
+third rejection of the same criterion sets the mission `human-blocked` and records why: the
+criterion, its plan sentence, the cited code and the three findings (`--verify-status` shows it
+too). The agent can't get past that point on its own. A person who agrees the criterion is
+fine, or that the plan sentence is the thing that's wrong, runs from their own terminal:
+
+```sh
+node <pack>/bin/mission-state.js --verify-override <id> --reason "<why, at least 15 characters>"
+```
+
+The override is refused unless stdin is a terminal and the session is on none of the pack's own
+agents (`dev`, `coder`, `scout`), so an agent's shell can't run it. It records who (the git user
+name, else the login), when and why, and counts for the ledger it was made on: change a
+criterion or a cited line afterwards and it no longer applies. Then `--set audit` returns the
+mission from `human-blocked` to `audit` with no new run, and `--clear` goes through. The
+honest-exit record lists each override.
+
+**The cost cap.** A mission gets at most 10 verifier runs. The 11th `--set audit` starts none and
+sets the mission `human-blocked` with `verifier run cap (10) reached`: a person decides what
+happens next.
+
+**Where the receipt lives.** `~/.kiro/missions/<missionId>.verify.json`, beside the mission's index
+entry, with the run's log next to it (`.verify.log`). It holds every run (start and end time, a hash of
+the ledger and of each cite window, the model, each criterion's verdict and quotes, and the tail of the
+model's output), the rejection counts and the overrides. Only the verifier writes it: the missions
+folder is protected, so an agent's tools and shell can read it but not change it. It is removed with
+the mission when the mission clears. The honest-exit record keeps
+`verifier: { status, runs, model }` and any `verifierOverrides`.
 
 The wrap also captures **estimate vs actual** — autonomous time, units, and human
 supervision/verification minutes — and appends one row to
