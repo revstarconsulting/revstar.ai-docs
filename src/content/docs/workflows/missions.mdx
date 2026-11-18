@@ -34,6 +34,22 @@ workflow loop. Client workflows skip agent hooks and the session-start hook, so 
 mission gates never ran inside one.
 </Aside>
 
+**0.11.0 (beta).** The installer and `kiroctl update` turn kiro-cli Workflows off. They
+set `chat.enableWorkflows` to `false` in `~/.kiro/settings/cli.json`. A `/goal` workflow
+runs on a built-in agent that skips the pack's agent hooks and the session-start hook,
+so a mission run that way is ungated. Run missions from a slash command in a v2 `dev`
+chat instead.
+
+You can turn Workflows back on with `kiro-cli settings chat.enableWorkflows true`. Don't:
+`kiroctl doctor` then fails its `workflows` row, with the fix
+`kiro-cli settings chat.enableWorkflows false`.
+
+A session on any agent other than `dev`, `coder` or `scout` can't start or advance a
+mission. `mission-state.js --init`, `--set`, `--yield`, `--touch`, the clear command,
+`--accept-add`, `--accept-set`, `--accept-rm` and `--resume`, `mission-broker.js claim`,
+`release` and `add-pr`, and `mission-acp-driver.js` are refused. Read-only status still
+works. See [the global hook](/capabilities/gates/#the-global-hook).
+
 A mission runs in an ordinary interactive `dev` chat on kiro-cli's **engine v2**.
 `kiroctl open --run` launches it:
 

@@ -309,6 +309,8 @@ blocking gates stay inert until you arm them. To keep a safe gate off for good, 
 6. Wires the Playwright and Azure DevOps MCP servers.
 7. Links the `kiroctl` binary onto your `PATH` and installs the desktop launcher.
 8. Records an install manifest so `kiroctl doctor`/`kiroctl update` know the layout.
+9. **0.11.0 (beta).** Turns kiro-cli Workflows off (`chat.enableWorkflows` is set to `false` in `~/.kiro/settings/cli.json`), because a `/goal` workflow skips the pack's hooks. `kiroctl update` does the same.
+10. **0.11.0 (beta).** Writes the global hook file `~/.kiro/hooks/revstar-workbench.json`. It runs `mission-pause`, `mission-state-protect` and `git-protect-gate` for any agent that isn't `dev`, `coder` or `scout`. See [Gates → The global hook](/capabilities/gates/#the-global-hook).
 
 ## 4. Verify
 

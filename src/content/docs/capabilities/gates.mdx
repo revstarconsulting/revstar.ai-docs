@@ -148,7 +148,8 @@ Its stop-control half does not. With or without the flag, an agent can't:
   for a QA browser to get into the app;
 - run `kiroctl missions pause | resume | end | stop-all | resume-all`.
   `kiroctl missions list` is allowed;
-- create, change or remove a hook's `.disabled` opt-out.
+- create, change or remove a hook's `.disabled` opt-out;
+- **0.11.0 (beta).** start or advance a mission from any agent other than `dev`, `coder` or `scout`. `mission-state.js --init`, `--set`, `--yield`, `--touch`, the clear command, `--accept-add`, `--accept-set`, `--accept-rm` and `--resume`, `mission-broker.js claim`, `release` and `add-pr`, and `mission-acp-driver.js` are refused. Read-only status still works: `mission-state.js`, `--json`, `--accept-show`, `--accept-json` and `--hours`. `mission-state.js` checks the agent itself, from the chat process. The [global hook](#the-global-hook) refuses the shell commands in a v3 session on a foreign agent.
 
 **The allow-list.** Under the kiro home, a destructive glob, variable or `find` is
 allowed only when its first folder is spelled out and is one of `telemetry`,
@@ -175,6 +176,38 @@ command passes as a sanctioned write only when it actually runs one, as in
 `node <pack>/bin/mission-state.js …`. A command such as
 `rm .kiro-mission # mission-state.js` used to get through on the name alone. It is
 refused now.
+
+## The global hook
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first.
+</Aside>
+
+The installer writes `~/.kiro/hooks/revstar-workbench.json` from the pack. It is a
+global hook file, so it covers agents the pack doesn't own. For any agent that is not
+`dev`, `coder` or `scout`, it runs three gates:
+
+| Gate | What it covers there |
+| --- | --- |
+| `mission-pause` | Pause and stop-all. |
+| `mission-state-protect` | Mission state: sentinels, the ledger, receipts and gate flags. |
+| `git-protect-gate` | Protected branches. |
+
+The pack's own agents skip it. They run the full set from their agent config. The gates
+still respect their enable flags.
+
+**Where kiro-cli reads it.** Measured on kiro-cli 2.37.1: kiro-cli reads this file on
+**engine v3** sessions only, and only from `~/.kiro/hooks`. It ignores `KIRO_HOME`
+there. A v2 chat does not run it. So the hook is a net for a foreign agent in a v3
+session. In a v2 chat, `mission-state.js` does its own agent check (see
+[below](#what-mission-state-protect-refuses-even-when-unarmed)).
+
+`kiroctl doctor` has a `global-hook` row. It fails when the file is missing or names a
+`global-hook.js` that is missing. The fix is `kiroctl update`. It warns when the file
+holds more than the three gates.
+
+The installer and `kiroctl update` also turn kiro-cli Workflows off. See
+[Missions](/workflows/missions/#running-a-mission-in-a-dev-chat).
 
 ## Mission Control sign-in
 
