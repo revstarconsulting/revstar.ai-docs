@@ -232,6 +232,22 @@ holds more than the three gates.
 The installer and `kiroctl update` also turn kiro-cli Workflows off. See
 [Missions](/workflows/missions/#running-a-mission-in-a-dev-chat).
 
+## The stuck-tool watchdog
+
+**0.11.0 (beta).** `tool-watchdog` is always on in the `dev`, `coder` and `scout` agents. It ends any tool call that has run for
+30 minutes without a result, because a hung command (a prompt waiting for input, a server that never exits, a pipe held open)
+otherwise leaves an autonomous mission waiting forever.
+
+- It ends only the process the stuck call started, and that process's children. It never touches the Kiro session itself, MCP
+  servers, or anything that was running before the call began.
+- The agent sees why in the tool result: the call's output ends with a `[tool-watchdog] ... ended as stuck` line telling it not
+  to run the command the same way again. The same notice is shown again on the next turn.
+- Sub-agents are covered the same way: a stuck command inside a sub-agent is ended, and the sub-agent and its parent carry on.
+- A sub-agent that goes quiet for 30 minutes with no command running is reported as **quiet** (it can't be ended from outside).
+  See it with `node <pack>/gates/tool-watchdog.js status`.
+- Calls that wait for a person (`user_input`) and the `subagent` call itself are never ended.
+- A person can turn it off with `~/.kiro/gates/tool-watchdog.disabled`. Agents can't create that file.
+
 ## Mission Control sign-in
 
 RevStar SOP standards and adoption telemetry both run under your **Mission
