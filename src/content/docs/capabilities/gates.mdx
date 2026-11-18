@@ -1,6 +1,6 @@
 ---
 title: Gates
-description: The 17 hooks wired into the agents. Four safe ones are armed by default, seven are always on, the rest are inert until you arm them, and all of them fail open.
+description: The 17 hooks wired into the agents. Five are armed by default (four safe ones, and mission-state-protect from 0.11.0), seven are always on, the rest are inert until you arm them, and all of them fail open.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -12,6 +12,9 @@ seventeen, without exception, and two more describe when a gate is on:
   `session-context` and `update-notify` can't block anything: they inject text or
   record a receipt. Every install and every `kiroctl update` arms them (see
   [The four safe hooks](#the-four-safe-hooks-are-armed-by-default)).
+- **`mission-state-protect` is armed by default too (0.11.0, beta).** It does refuse, but
+  only an agent's edit of mission state and a mission cleared before its audit. See
+  [`mission-state-protect` is armed by default](#mission-state-protect-is-armed-by-default).
 - **Seven hooks are always on, and the other blocking gates are inert until armed.**
   The always-on hooks are `telemetry-emit`, `mc-signin-gate` and `mc-session-health`,
   which are always on because telemetry and the Mission Control sign-in are mandatory
@@ -45,7 +48,7 @@ before assuming the rule doesn't apply.
 | --- | --- | --- | --- |
 | `mission-inject` | Session start | inject | Re-injects the active mission so it survives context compaction. Armed by default. |
 | `mission-turn-recorder` | Prompt submitted, turn end | inject | Writes the turn receipt the mission chat's continue hook reads (a cleared mission emits a terminal stop) and times each turn, which is where a mission's [autonomous hours](/capabilities/telemetry/#autonomous-hours) come from. Armed by default. |
-| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. During an active mission it also refuses an agent's edits to a lane repo's `.mission-lane` file and to `scripts/broker/registry.json` (0.11.0, beta): they hold the lane's protected branches and lease, so a person edits them outside a mission. Reading is fine, the `.mission-lane.lane-1` / `.lane-2` templates are not guarded, and with no active mission both are ordinary files. Its stop-control half is **always on**: it also refuses an agent's attempt to touch the pause and stop-all files, the mission index, a hook's `.disabled` opt-out, the app's token log and mission API, and `kiroctl missions` (except `list`). See [below](#what-mission-state-protect-refuses-even-when-unarmed). |
+| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. Armed by default from 0.11.0 (beta). `mission-state.js` enforces the clear rule itself too, so it holds with the gate off. During an active mission it also refuses an agent's edits to a lane repo's `.mission-lane` file and to `scripts/broker/registry.json` (0.11.0, beta): they hold the lane's protected branches and lease, so a person edits them outside a mission. Reading is fine, the `.mission-lane.lane-1` / `.lane-2` templates are not guarded, and with no active mission both are ordinary files. Its stop-control half is **always on**: it also refuses an agent's attempt to touch the pause and stop-all files, the mission index, a hook's `.disabled` opt-out, the app's token log and mission API, and `kiroctl missions` (except `list`). See [below](#what-mission-state-protect-refuses-even-when-unarmed). |
 | `qa-render-gate` | fetch | block | Forces a real-browser render during QA instead of accepting a fetch as a visual check. A `mobile` run is not exempt: web pages still need the browser. |
 | `qa-report-gate` | write | block | Refuses a QA report missing `WORKS` + `MATCHES INTENT` verdicts (each with `method: live\|inspection\|code`), render evidence, a real coverage receipt file (full runs), or the adversarial-pass receipt (runs with change items); and any "PASS with note". For a run marked `mobile`, also refuses a report with no fresh device screenshot, a device still booked, a created test account with no cleanup, or no build file id and commit. |
 | `git-protect-gate` | shell | block | Refuses direct commit/merge/push to protected branches and `--no-verify`; allows `gh pr`. In a repo in a Mission Control lane it also protects the lane file's `branch_base` and `pr_base` (0.10.0, beta). |
@@ -124,10 +127,25 @@ but the installed `dev` agent doesn't run it when a prompt is submitted. That ha
 on an older pack: each turn is then timed from the previous turn's end instead of its
 start.
 
+## `mission-state-protect` is armed by default
+
+**0.11.0 (beta).** `install.sh`, `install.ps1` and `kiroctl update` arm `mission-state-protect`
+along with the four safe hooks. It has the same opt-out: a `~/.kiro/gates/mission-state-protect.disabled`
+file keeps installs and updates from re-arming it, and agents can't create it. `kiroctl doctor` and
+Diagnostics show it as a fifth hook row (*armed*, *off by choice* or *not armed*). The other blocking
+gates (`qa-render-gate`, `qa-report-gate`, `git-protect-gate`, `reuse-before-create-gate`) stay inert
+until you arm them.
+
+What the armed gate adds to a mission: an agent can't edit the sentinel, the acceptance ledger,
+receipts or gate flags by hand, and it can't clear a mission from any state but `audit` or while the
+ledger is unmet. The ledger rule matches `mission-state.js`: `access-descoped:*` and `skipped:*`
+criteria don't block, and an advisory mission with no ledger may clear. The script applies the same
+rules with no gate armed; see [Clearing a mission](/workflows/missions/#clearing-a-mission).
+
 ## What `mission-state-protect` refuses even when unarmed
 
-The gate's original job, protecting mission state, still needs its `.enabled` flag.
-Its stop-control half does not. With or without the flag, an agent can't:
+Before 0.11.0 the gate's original job, protecting mission state, needed its `.enabled` flag.
+Its stop-control half never did. With or without the flag, an agent can't:
 
 - create, change, move or delete a pause file (`~/.kiro/missions/*.paused`), the
   `~/.kiro/stop-all` file, a driver record, or the mission index in

@@ -24,7 +24,10 @@ and writes a to-do list covering every phase.
 
 All mission state is read and written through **`mission-state.js`** — never by
 hand-editing a file. The `mission-state-protect` gate enforces this: it refuses
-a direct edit of mission state and refuses clearing an unaudited mission.
+a direct edit of mission state and refuses clearing an unaudited mission. **0.11.0
+(beta).** The gate is armed by default, and `mission-state.js` also enforces the clear
+rules itself (see [Clearing a mission](#clearing-a-mission)), so they hold even where
+the gate is off.
 
 ## Running a mission in a `dev` chat
 
@@ -418,7 +421,8 @@ marked:
   command output), or
 - **GAP**, with what's missing.
 
-A mission cannot clear while any ledger line reads GAP. Nor can it clear while the
+A mission cannot clear while any ledger line is not MET (GAP, PENDING, or MET with no
+evidence), with the exceptions under [Clearing a mission](#clearing-a-mission). Nor can it clear while the
 [QA fan-out gate](/capabilities/gates/#the-qa-fan-out-gate) finds a page, endpoint or job
 the mission's changes reach that wasn't tested since its code last changed (or validly
 waived). This is what stops a
@@ -427,6 +431,56 @@ needs a cited artifact.
 
 Before a mission clears, it refreshes and commits the shared project context
 (`.kiro/context/`) so the next developer inherits the current state.
+
+### Clearing a mission
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. Before, the audit-only rule lived only in the
+`mission-state-protect` gate; a mission could be cleared from any state when the gate was
+off.
+</Aside>
+
+`mission-state.js --clear` ends a **finished** mission. It checks these itself, whether or not any
+gate is armed, and a refused clear exits 1, keeps the mission and sends nothing:
+
+- **The state must be `audit`.** From `active`, `agents-wait`, `deploy-wait` or either
+  `human-blocked` state it refuses and names the state. Set `audit`, run the audit, then clear.
+- **The ledger must be complete.** Every criterion is MET with cited evidence, and a count
+  criterion has reached its target. The refusal lists each unmet criterion and the next step.
+- **A mission with no criteria is refused** when it was started with `--kind`, `--plan` or
+  `--bug`: decompose the plan with `--accept-add` first.
+
+Two things do not block a clear. The exit is then **PARTIAL**, not COMPLETE:
+
+- A criterion whose id starts `access-descoped:` (a dependency the plan descoped; see
+  [Access: you must declare it](#access-you-must-declare-it)) or `skipped:`. They can never be
+  MET, so they don't hold the clear back when they are the only unmet ones. The honest-exit
+  record and its console line name each one and who decided it: the plan's descoping text
+  for `access-descoped:`, the criterion's `ackedBy` for `skipped:` (`unknown` if absent).
+- An **advisory** mission (started without `--kind`, `--plan` or `--bug`, or begun before
+  those existed) that has no ledger at all. It may clear from `audit`; the record says
+  `no acceptance ledger`.
+
+**Taking a criterion out on purpose.** `--accept-rm` needs a reason of at least 15
+characters:
+
+```sh
+node <pack>/bin/mission-state.js --accept-rm --id <id> --reason "deferred: needs the paid upgrade, ticket 123"
+```
+
+The criterion moves to `removed[]` in the ledger with its reason and the time.
+`--accept-show` prints a **removed** section, and the honest-exit record and its console
+line list every removed id with its reason, so a deferred item stays visible after the
+clear. A removal without a reason is refused, and an `access-descoped:` criterion can't be
+removed at all.
+
+**Ending a mission that isn't finished.** `node <pack>/bin/mission-state.js --clear --failed "<reason>"`
+records the exit as **FAILED** with that reason, and needs no audit or ledger. The reason
+must be at least 15 characters. It is the person's way out: `mission-state.js` refuses it from a
+session on `dev`, `coder` or `scout` unless `KIROCTL_PERSON_ACTION=1` is set, which
+**End** in the app and `kiroctl missions end` set themselves. A plain terminal, where no
+agent can be found, is allowed. The variable stops an agent failing its own mission by
+reflex; it doesn't stop one that sets it on purpose.
 
 The wrap also captures **estimate vs actual** — autonomous time, units, and human
 supervision/verification minutes — and appends one row to
@@ -522,7 +576,7 @@ Each project's page also has a **Mission** card for its own mission.
 | --- | --- |
 | **Pause** | The agents working on that mission, and their sub-agents, refuse their next tool call. The mission, task list and ledger are kept. Asks you to confirm. |
 | **Resume** | Lifts the pause. No confirmation. |
-| **End** | Ends the mission without finishing it. It is recorded as failed ("ended from the app"), so Mission Control sees a `mission_failed`. The task list and ledger files stay on disk. Asks you to confirm. |
+| **End** | Ends the mission without finishing it. It is recorded as failed ("ended from the app"), so Mission Control sees a `mission_failed`. **0.11.0 (beta).** This is the person's `--clear --failed` path; an agent can't take it. The task list and ledger files stay on disk. Asks you to confirm. |
 | **Stop all agents** | Every Kiro agent on the machine refuses its next tool call: `dev`, `coder` and `scout`, mission or not, **including your own interactive session**. Asks you to confirm. |
 | **Resume all** | Lifts stop-all. No confirmation. |
 | **Kill** | Appears 60 seconds after a pause if the hands-off driver is still running. Ends the driver's whole process tree; the turn in flight can lose unsaved work. Asks you to confirm. |
