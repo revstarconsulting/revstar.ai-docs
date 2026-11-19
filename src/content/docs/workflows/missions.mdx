@@ -266,6 +266,65 @@ node <pack>/bin/mission-state.js --clear --repos <path> [<path> …]   # name th
 node <pack>/bin/mission-state.js --clear --no-repos                  # no code changed
 ```
 
+## What the agent is re-told, and when
+
+<Aside type="note" title="0.11.0 (beta)">
+New in 0.11.0, on the beta channel first. Before, the session-start injection carried only the
+mission text, and nothing reminded the agent of the plan after a long chat.
+</Aside>
+
+A mission is re-injected at the start of every session. Three small hooks keep it in front of the
+agent, and each has a size cap.
+
+| When | What the agent sees | Cap |
+|---|---|---|
+| **Session start** (`mission-inject`) | First line: `Governing plan: <path> (hash <12>). Re-read its decisions, Dependencies, Standards and the current phase before acting.` On a mission under [rules v2](#tying-criteria-to-the-plan-rules-v2) it adds `Current phase: Phase N`. A mission with no plan has no such line. Then carried state, the mission block, the lane and QA reminders and a `Project memory` section. | 8,000 characters in all. The plan line is never cut; later sections are cut first and the cut is marked. |
+| **A prompt** (`mission-turn-recorder`) | One `[mission]` line: the mission in a sentence, the plan path and hash, the current phase, and the `mission-state.js` command that shows the state. | 600 characters. Sent on a session's first prompt, then on the 25th prompt counting from the one that last carried it, or after 30 minutes, whichever comes first. |
+| **Session start** (`session-context`) | The git snapshot: branch, status, recent commits, diff stat. | 40 lines per section with a `(N more lines)` marker, 8,000 characters in all. |
+
+The chat keeps itself going by sending its own `[mission-loop]` continuation prompts. Those count
+as prompts, but only the 30-minute rule can make one carry the pointer, so a busy loop does not
+repeat it every 25 steps. The pointer's counters live in `<kiro home>/inject/<session id>.json`.
+That file is not mission state, and deleting it only makes the next prompt carry the pointer.
+
+### Carried state is marked unverified
+
+A session that starts on a mission an earlier session left parked sees one line for each thing it
+inherits:
+
+```text
+UNVERIFIED (carried from an earlier session): the mission was parked on blocker "stripe-key" (Stripe test key), checked failing at 2026-11-18T10:00:00.000Z. It may be satisfied now. Re-check: node <pack>/bin/mission-state.js --set human-blocked-confirmed --blocker stripe-key
+```
+
+The lines cover a confirmed blocker, a `human-blocked` state with its reason, and any
+`skipped:<check>` or `access-descoped:<id>` criterion. Nothing is dropped, but none of it is
+treated as current. For a declared dependency the re-check command re-runs the dependency's check,
+and it refuses the block when the check now passes. For a Required Access dependency the command is
+the access probe. A blocker given as free text on a mission with no plan has no mechanical check, so
+the line says to ask the person.
+
+### A mission that cannot be attached says so
+
+Several missions in one folder with none belonging to this session, or a sentinel that is empty or
+unreadable, produces a single `NOTICE` line instead of an injection. Nothing is refreshed and the
+session is not attached to any of them. Name the mission (`KIRO_SESSION_ID`, or `--session <id>` on
+`mission-state.js`) or end the ones you no longer need.
+
+### Project memory
+
+At session start, with a mission or without one, the agent is shown the titles of the project's
+notes, at most 25 lines:
+
+- `.kiro/memory/*.md` in the project's **main checkout**. A git worktree reads its main checkout's
+  notes, so a note written in one is seen from the others.
+- `$KIRO_HOME/memory/<project>/`, the per-developer fallback `memory-note.js` writes when a
+  project has no root of its own.
+- `.kiro/context/*.md`, one line each.
+
+The title is the note's first heading, or its first line. The agent reads the ones that match its
+task with `cat <folder>/<file>`. The `build-plan` skill tells it to read the notes that match the
+plan before it builds anything. A project with no notes gets no section.
+
 ## The preflight gate
 
 Setting a mission runs a **preflight** that checks the approved process is in
