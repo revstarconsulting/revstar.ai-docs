@@ -296,7 +296,9 @@ mission's autonomous hours. `--arm-safe` is still accepted and does the same. Th
 blocking gates stay inert until you arm them. To keep a safe gate off for good, create
 `~/.kiro/gates/<name>.disabled`; installs and `kiroctl update` never re-arm it. See
 [Gates → The gates armed by default](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
-`install.ps1` arms the same four.
+`install.ps1` arms the same four. To arm every gate at once, run `./install.sh --arm-all`
+(`.\install.ps1 -ArmAll` on Windows). **0.11.0 (beta).** That now includes `ado-receipt-gate`,
+which stays off in a plain install or `kiroctl update`.
 
 ### What the bootstrap does
 

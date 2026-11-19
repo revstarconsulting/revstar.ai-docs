@@ -32,6 +32,11 @@ seventeen, without exception, and two more describe when a gate is on:
   touch <project>/.kiro/gates/<name>.enabled  # this project only
   ```
 
+  To arm every gate in one step, run the installer with `--arm-all` (`install.sh`) or
+  `-ArmAll` (`install.ps1`). **From 0.11.0 (beta) that includes `ado-receipt-gate`.** It is
+  still off by default: a plain install and `kiroctl update` do not arm it, and a gate with a
+  `.disabled` file stays off.
+
 - **Fails open.** (All seventeen.) A gate that errors or isn't armed never blocks the call it
   would otherwise inspect. An armed gate that doesn't fire is worse than no
   gate at all, because it's trusted — arm one at a time and verify it.
@@ -334,7 +339,14 @@ Run the full self-test suite, which asserts every gate in both directions
 node kiro/gates/selftest.js
 ```
 
-A clean run reports every case passed (354/354 on 0.10.0). Scope it to one gate or get verbose output:
+A clean run reports every case passed (354/354 on 0.10.0). **0.11.0 (beta).** A should-fire (RED) case
+passes only when the gate exits `2` **and** its stderr carries that gate's own refusal text
+(for example `BLOCKED mission-state-protect`). A gate that exits `1` with no message, or refuses
+for some other reason, fails the case: Kiro blocks on any non-zero exit, so a crashing gate would
+otherwise look like a working one. The installers run the selftest in its fast mode
+(`KIRO_SELFTEST_FAST=1`), which includes the gate sections of the `mission-pause` suite
+(`node kiro/bin/test-mission-pause.js --quick`: pause and stop-all refusals, the `goal` tool
+passing through, resume). Scope the selftest to one gate or get verbose output:
 
 ```sh
 node kiro/gates/selftest.js qa
