@@ -44,7 +44,7 @@ For ADO-tracked work, `ado-write` drives the item the branch is bound to
 through a fixed lifecycle:
 
 1. **At start** — the item moves to `Active` and is assigned to the developer.
-   **0.11.0 (beta).** If the client has a [Start state](#set-up-ado-for-a-client-org-project-pat), the item
+   **0.11.0.** If the client has a [Start state](#set-up-ado-for-a-client-org-project-pat), the item
    moves to that state instead, walking the client's state path in order when the board requires it.
 2. **At done, before opening the PR** — the item moves to the project's
    ready-for-QA/UAT state (the client's **Done state**), is assigned to the
@@ -63,7 +63,7 @@ touch ~/.kiro/gates/ado-receipt-gate.enabled
 
 It is **disarmed by default** and **fails open** — any uncertainty or error
 allows the PR — and it only fires for ADO-bound `feat/<id>-*` branches. Work on
-any other branch is untouched. **0.11.0 (beta).** The app's Settings → Gates has a checkbox that arms
+any other branch is untouched. **0.11.0.** The app's Settings → Gates has a checkbox that arms
 and disarms it. See [Gates](/capabilities/gates/#the-ado-receipt-gate-in-the-app).
 
 ## Set up ADO for a client (org, project, PAT)
@@ -91,7 +91,7 @@ on the client, once:
   kiroctl client set-ado --slug <client> --ado-pm "Jordan Lee"
   ```
 
-- **Start state** — **0.11.0 (beta).** The board state the item moves to when work starts. Optional. If
+- **Start state** — **0.11.0.** The board state the item moves to when work starts. Optional. If
   it is unset, nothing is injected and `ado-write` uses `Active`. Set it in the **Azure DevOps** card, or:
 
   ```sh
@@ -152,7 +152,7 @@ work with zero manual setup:
   requests to.
 - `ADO_DONE_STATE` / `ADO_DONE_ASSIGNEE` — the client's Done state and Done
   assignee, used by the [work-item lifecycle](#the-enforced-work-item-lifecycle).
-- `ADO_START_STATE` / `ADO_STATE_PATH` — **0.11.0 (beta).** The client's Start state and state path. Not
+- `ADO_START_STATE` / `ADO_STATE_PATH` — **0.11.0.** The client's Start state and state path. Not
   injected when unset; `ado-write` then uses `Active`.
 
 `mcp.json` references org/project from the environment

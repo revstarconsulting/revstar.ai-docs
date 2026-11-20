@@ -153,7 +153,7 @@ kiroctl project set-env --dir <project> \
 The GUI's **New project** wizard has a QA step that captures the same fields —
 staging/dev URL, environment, target branch, and backend (SSH/DB) access — and
 the project detail's **QA environment** card lets you edit them any time after.
-**0.11.0 (beta).** The card saves the backend query and probe to the machine-local
+**0.11.0.** The card saves the backend query and probe to the machine-local
 `.kiro/qa-contract.local.json`, not the committed contract (see
 [Values that differ per machine](#values-that-differ-per-machine)).
 Linking scaffolds a minimal `qa-contract.json` and a `qa-test-cases/test-credentials.md`
@@ -167,7 +167,7 @@ for you (surface + interaction inventories → `qa-registry-merge.js` → the pr
 manifest). You can also run them by hand from the project root while iterating on
 the contract.
 
-**3. Arm the gates.** The four safe hooks and, from 0.11.0 (beta), `mission-state-protect` are already armed by the installer. The blocking gates are inert until an enable flag exists (the exceptions are the always-on
+**3. Arm the gates.** The four safe hooks and, from 0.11.0, `mission-state-protect` are already armed by the installer. The blocking gates are inert until an enable flag exists (the exceptions are the always-on
 `telemetry-emit` hook, `mission-pause` and, wherever Mobile Next is configured, `mobile-guard` and `mobile-sweep`) — globally at
 `$KIRO_HOME/gates/<gate>.enabled` or per-project at `<project>/.kiro/gates/`. Arm
 one at a time:
@@ -209,7 +209,7 @@ overlay and contrast, and the screenshots are the proof regardless.
 
 ### Values that differ per machine
 
-**0.11.0 (beta).** Some contract values are yours alone: your own AWS profile, an SSH alias, a local
+**0.11.0.** Some contract values are yours alone: your own AWS profile, an SSH alias, a local
 path. Keep those out of the committed `qa-contract.json`.
 
 **The local file.** `<repo>/.kiro/qa-contract.local.json` is merged over `qa-contract.json` by every
@@ -283,7 +283,7 @@ tests every connected part of the code:
   loads with `<script src>` reaches that page. Code that reaches no entry point at all
   (build config, dead code, DI wiring) is listed as an **unclassified** target, so it still
   gets a look instead of silently dropping out.
-- **Lazy-loaded pages:** **0.11.0 (beta).** A page loaded through any wrapper around
+- **Lazy-loaded pages:** **0.11.0.** A page loaded through any wrapper around
   `() => import('./Page')` is treated like `React.lazy`. That covers `lazyImportRetry(() => import('./Page'))`
   and `utils.lazyRetry(...)`. A change to a component only one page uses selects only that page.
   `.then(m => m.Named)` binds the named export. A wrapper that takes a path string, such as
@@ -353,7 +353,7 @@ On top of the two verdicts, the `qa-report-gate` now refuses a report when:
 - a run with change items doesn't cite its **adversarial-pass receipt**: the agent keeps
   trying to break the *changed* items until two rounds in a row find nothing new
   (`qa-adversarial-receipt.js record --round <n> --tried "<what>" --result "<what happened>" --findings <k>`).
-  **0.11.0 (beta):** each round now says what was tried (`--tried`, 20 characters or more) and what
+  **0.11.0:** each round now says what was tried (`--tried`, 20 characters or more) and what
   happened (`--result`, 10 or more), and `--fixed` records the commit or note for a round with findings.
   An empty round counts only if it carries a `tried`, so a receipt recorded by an older pack, whose rounds
   have none, reads as not finished and needs two new rounds;
