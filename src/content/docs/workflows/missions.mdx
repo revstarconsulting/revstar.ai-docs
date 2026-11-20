@@ -924,6 +924,7 @@ Each project's page also has a **Mission** card for its own mission.
 | **End** | Ends the mission without finishing it. It is recorded as failed ("ended from the app"), so Mission Control sees a `mission_failed`. **0.11.0 (beta).** This is the person's `--clear --failed` path; an agent can't take it. The task list and ledger files stay on disk. Asks you to confirm. |
 | **Stop all agents** | Every Kiro agent on the machine refuses its next tool call: `dev`, `coder` and `scout`, mission or not, **including your own interactive session**. Asks you to confirm. |
 | **Resume all** | Lifts stop-all. No confirmation. |
+| **Resume mission** | **0.11.0 (beta).** Opens a terminal with a new `dev` chat in the mission's project (`kiroctl open --run`) whose first message continues the mission. Use it after a chat was closed, crashed or was ended as stuck. It is the main button when no chat is running the mission. If one is running, or it looks stuck, it asks before opening a second chat. It is unavailable, with the reason shown, while the mission is paused or all agents are stopped, and for a folder that isn't a bound project (run `kiroctl open --dir <folder> --run` there instead). |
 | **Kill** | Appears 60 seconds after a pause if the hands-off driver is still running. Ends the driver's whole process tree; the turn in flight can lose unsaved work. Asks you to confirm. |
 
 While stop-all is on, the header button turns into a red **All agents stopped** pill.

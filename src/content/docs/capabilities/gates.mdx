@@ -253,6 +253,23 @@ otherwise leaves an autonomous mission waiting forever.
 - Calls that wait for a person (`user_input`) and the `subagent` call itself are never ended.
 - A person can turn it off with `~/.kiro/gates/tool-watchdog.disabled`. Agents can't create that file.
 
+### A chat stuck between tools
+
+**0.11.0 (beta).** Sometimes every tool in a turn finishes, but Kiro never hands the results back to the model, so the chat sits
+there with nothing running. Ctrl+C and `/compact` don't help. The watchdog also catches this case. When a mission turn has had no
+hook event and no tool process for **20 minutes**, it:
+
+- stops the mission's chat loop with the reason **hung**, so the app's Missions drawer and `kiroctl missions` show it as
+  stopped (with why) instead of running;
+- adds a `[tool-watchdog]` notice that tells you to quit the chat and continue with `kiroctl open --run`, or with
+  **Resume mission** in the app;
+- ends the chat itself, only for a **pre-approved** mission. Nobody is there to quit it, and nothing is lost: the mission, task
+  list and ledger are on disk. A mission you are attending is never ended; you see the notice instead.
+
+A sub-agent that is still working counts as activity, so a long delegation is not mistaken for a hang. Only a v2 mission chat
+(`kiro-cli chat --agent-engine v2`) records the chat loop, so a second chat open in the same folder can't make the mission look
+dead. `tool-watchdog.disabled` turns this check off too.
+
 ## Mission Control sign-in
 
 RevStar SOP standards and adoption telemetry both run under your **Mission
