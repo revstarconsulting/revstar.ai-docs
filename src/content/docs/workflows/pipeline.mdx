@@ -1,6 +1,6 @@
 ---
 title: The execution pipeline
-description: When to use what — how planning, grill-me, estimation, the mission/goal loop and QA sequence to take work from an idea to a verified change.
+description: When to use what — how planning, grill-me, estimation, the mission and QA sequence to take work from an idea to a verified change.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
@@ -12,7 +12,7 @@ the work is already well described. This page shows **when to use what**.
 ## The general path — new features and changes
 
 ```text
-Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (/goal)
+Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (/build-plan)
                                                           └─ auto-runs /qa on every
                                                              surface-changing phase
 ```
@@ -69,11 +69,13 @@ Planning mode  →  grill-me  →  estimation (optional)  →  Run the mission (
    AI/LLM workloads are flagged and estimated separately. A plan estimate ends with a
    required `kiro-estimate` block — see [Estimation output contract](#estimation-output-contract).
 
-4. **Run the mission** — set the plan as the mission and drive it with `/goal`.
+4. **Run the mission** — type `/build-plan plan=<path>` in a `dev` chat. It sets the plan as the mission and the chat keeps itself going.
    It builds phase by phase and **automatically runs the `qa` skill, scoped with its fan-out,** on every
    phase that changes product surface, so verification isn't a separate step you
    have to remember. The mission clears only when the acceptance ledger is all
-   **MET**.
+   **MET**. **0.11.0 (beta):** the app's **Execute plan** button does the same from the
+   project page, after it checks the plan's grill receipt and access. See
+   [Execute a plan from the app](/workflows/missions/#execute-a-plan-from-the-app).
 
 </Steps>
 
@@ -159,10 +161,10 @@ The scope/risk read ("how big is this?", no plan file) is exempt: no
 
 When the bugs are **clearly described** — a document, screenshots, or concrete
 repro steps — you don't need the planning → grill-me → estimation run. Go
-straight to the mission with the bug-fixing prompt:
+straight to the mission with `/fix-bugs`:
 
 ```text
-Run the mission (/goal) with the bug-fixing prompt  →  /qa verifies each fix
+Run the mission (/fix-bugs doc=<path>)  →  /qa verifies each fix
 ```
 
 The mission reproduces each reported issue, fixes it, and uses the QA protocol
@@ -177,9 +179,9 @@ first — otherwise the mission is guessing at intent.
 
 ## Ready-to-use prompts
 
-The exact, paste-ready `/goal` prompts for **both** paths — a full end-to-end
-build and an evidence-driven bug-fixing backlog — live on the
-[Missions & /goal](/workflows/missions/) page.
+The exact, paste-ready slash commands for **both** paths — a full end-to-end
+build (`/build-plan`) and an evidence-driven bug-fixing backlog (`/fix-bugs`) — live on the
+[Missions](/workflows/missions/#ready-to-use-prompts) page.
 
 ## The skills in this pipeline
 
@@ -187,6 +189,6 @@ build and an evidence-driven bug-fixing backlog — live on the
 | --- | --- | --- |
 | Stress-test the plan | `grill-me` | [Skills](/capabilities/skills/) |
 | Size the work | `estimation` | [Skills](/capabilities/skills/) |
-| Drive multi-phase work | `mission` | [Missions & /goal](/workflows/missions/) |
+| Drive multi-phase work | `mission` | [Missions](/workflows/missions/) |
 | Verify every change | `qa` | [QA & Design](/workflows/qa-and-design/) |
 | Build UI right before QA | `design` | [QA & Design](/workflows/qa-and-design/) |

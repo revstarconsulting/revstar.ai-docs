@@ -1,20 +1,20 @@
 {
   "id": "mission",
   "title": "Mission: plan.md",
-  "subtitle": "The dev agent runs a multi-phase plan as a mission: distill the macro-goal, delegate the build to the coder sub-agent (and lookups to scout), QA-gate each phase, then audit the acceptance ledger and clear — driven by the /goal loop.",
-  "model": "Claude Opus 4.8",
-  "effort": "High",
+  "subtitle": "The dev agent runs a multi-phase plan as a mission: distill the macro-goal, delegate the build to the coder sub-agent (and lookups to scout), QA-gate each phase, then audit the acceptance ledger and clear — kept going by the dev chat's auto-continue.",
+  "model": "Claude Opus 5.5",
+  "effort": "Medium",
   "mode": "Mission",
   "autopilot": true,
   "capability": "mission",
   "stepped": true,
-  "note": "Illustrative demo of mission mode, the /goal loop, dev + sub-agents, and the qa skill — recorded, not live.",
+  "note": "Illustrative demo of mission mode, the /build-plan slash command with its [mission-loop] auto-continue, dev + sub-agents, and the qa skill — recorded, not live.",
   "turns": [
     {
       "role": "user",
       "stage": "Kick off the mission",
       "blocks": [
-        { "type": "text", "text": "/goal Implement ALL phases of plan.md and set it as the mission using the mission skill (distill the macro-goal, to-do list for EVERY phase, sentinel --preapproved). QA-gate each phase, then audit requirement-by-requirement and clear. Decide reversible forks yourself; don't stop to ask. --max 50" }
+        { "type": "text", "text": "/build-plan plan=plan.md" }
       ]
     },
     {
@@ -25,7 +25,7 @@
         { "type": "text", "text": "Distilling the macro-goal and enumerating **all three phases** up front — the ledger judges the whole plan, not just the phase in front of me." },
         { "type": "tool", "name": "mission-state.js --init --preapproved", "summary": "Write the mission sentinel (pre-approved autonomous)", "detail": "WROTE .kiro-mission.<sid>\nstate: active   preapproved: yes" },
         { "type": "tool", "name": "mission-state.js --accept-add ×3", "summary": "Record the acceptance ledger — one criterion per phase", "detail": "p1-billing-client · p2-sync-engine · p3-cli-docs  (each MET only with cited evidence)" },
-        { "type": "text", "text": "**Mission set** (pre-approved autonomous). Task list covers P1–P3; acceptance ledger has 3 criteria. The `/goal` loop will re-invoke this session each turn until the ledger is clean. Starting **Phase 1**." }
+        { "type": "text", "text": "**Mission set** (pre-approved autonomous). Task list covers P1–P3; acceptance ledger has 3 criteria. At the end of each turn the Stop hook continues this chat with the next step, until the ledger is clean. Starting **Phase 1**." }
       ]
     },
     {
@@ -39,6 +39,13 @@
           { "type": "add", "text": "// exponential backoff on 429/5xx; never logs the API key" }
         ] },
         { "type": "text", "text": "Phase 1 built by `coder`. Auditing against the plan (typed ✓, retries ✓, reuses fetchJson ✓), then running QA before I move on." }
+      ]
+    },
+    {
+      "role": "user",
+      "stage": "Auto-continue (Stop hook)",
+      "blocks": [
+        { "type": "text", "text": "[mission-loop] auto-continue 1/60 — continue with the next step of the mission." }
       ]
     },
     {
@@ -67,7 +74,7 @@
         { "type": "text", "text": "**Requirement-by-requirement audit vs plan.md:** P1 billing client MET (tests) · P2 sync engine + status page MET (render + coverage) · P3 CLI wiring + docs MET (built + `--help` verified). No gaps, no partial rollouts, no deferred scope." },
         { "type": "tool", "name": "mission-state.js --accept-show", "summary": "Ledger status", "detail": "criteria: 3   status: COMPLETE (clear allowed)" },
         { "type": "tool", "name": "mission-state.js --clear", "summary": "Clear the mission", "detail": "CLEARED — the objective is achieved." },
-        { "type": "text", "text": "All three phases built, QA green each phase, ledger **COMPLETE** — mission cleared and the `/goal` loop stops. Every reversible fork along the way was decided and logged; nothing needed a one-way-door stop." }
+        { "type": "text", "text": "All three phases built, QA green each phase, ledger **COMPLETE** — mission cleared, so the auto-continue lets go. Every reversible fork along the way was decided and logged; nothing needed a one-way-door stop." }
       ]
     }
   ]

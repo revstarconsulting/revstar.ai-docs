@@ -54,8 +54,8 @@ client's Identity Center configuration — rather than launching Kiro directly.
    kiroctl open --dir ~/kiro/acme --run
    ```
 
-   This logs you in via SSO, then launches `kiro-cli chat --agent-engine v2 --agent dev` inside
-   the project directory.
+   This logs you in via SSO, then launches `kiro-cli chat --agent-engine v2 --agent dev --model claude-opus-5.5 --effort medium --trust-all-tools`
+   inside the project directory. To send a first message, add `--prompt "<line>"`.
 
 </Steps>
 
@@ -166,6 +166,9 @@ Cloning private repos uses your **existing git/GitHub credentials** (SSH or
 `gh`) — the client governs AWS/Kiro SSO, not GitHub. A URL with an embedded
 credential is rejected. `open` clones only what's missing and never auto-pulls,
 so it won't disturb a working tree.
+
+**0.11.0 (beta).** In a git worktree of a bound project, `kiroctl open` and `kiroctl env` use the main
+checkout's client binding (`.kiro/client`) when the worktree has none.
 </Aside>
 
 ## Orient in an existing codebase

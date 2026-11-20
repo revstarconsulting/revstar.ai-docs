@@ -158,7 +158,7 @@ with `gh auth login` or your SSH key, then clone and run the bootstrap below.
     # git comes from the Command Line Tools (xcode-select --install) if missing
     git clone --branch stable https://github.com/revstarconsulting/revstar.ai.git
     cd revstar.ai
-    ./scripts/bootstrap-macos.sh              # arms the four safe gates; --arm-safe is accepted and does the same
+    ./scripts/bootstrap-macos.sh              # arms the default gates; --arm-safe is accepted and does the same
     ```
     No Homebrew required — `fnm` installs Node per-user.
   </TabItem>
@@ -289,14 +289,18 @@ From inside `revstar.ai`, point the installer at your `revstar.ai-registry` clon
   </TabItem>
 </Tabs>
 
-Every install arms the four **safe gates** (`mission-inject`, `mission-turn-recorder`,
-`session-context`, `update-notify`). They can't block anything: they inject mission and
-session context, remind you of updates, and record the turn receipts that measure a
-mission's autonomous hours. `--arm-safe` is still accepted and does the same. The
-blocking gates stay inert until you arm them. To keep a safe gate off for good, create
-`~/.kiro/gates/<name>.disabled`; installs and `kiroctl update` never re-arm it. See
-[Gates → The four safe hooks](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
-`install.ps1` arms the same four.
+Every install arms five hooks: the four **safe gates** (`mission-inject`, `mission-turn-recorder`,
+`session-context`, `update-notify`) and, since 0.11.0, `mission-state-protect`. The four safe
+gates can't block anything: they inject mission and session context, remind you of updates,
+and record the turn receipts that measure a mission's autonomous hours.
+`mission-state-protect` refuses an agent's edits of mission state. `--arm-safe` is still
+accepted and does the same. **0.11.0 (beta).** The blocking gates other than
+`mission-state-protect` stay inert until you arm them. To keep one of the five off for good,
+create `~/.kiro/gates/<name>.disabled`; installs and `kiroctl update` never re-arm it. See
+[Gates → The gates armed by default](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
+`install.ps1` arms the same five. To arm every gate at once, run `./install.sh --arm-all`
+(`.\install.ps1 -ArmAll` on Windows). **0.11.0 (beta).** That now includes `ado-receipt-gate`,
+which stays off in a plain install or `kiroctl update`.
 
 ### What the bootstrap does
 
@@ -309,6 +313,8 @@ blocking gates stay inert until you arm them. To keep a safe gate off for good, 
 6. Wires the Playwright and Azure DevOps MCP servers.
 7. Links the `kiroctl` binary onto your `PATH` and installs the desktop launcher.
 8. Records an install manifest so `kiroctl doctor`/`kiroctl update` know the layout.
+9. **0.11.0 (beta).** Turns kiro-cli Workflows off (`chat.enableWorkflows` is set to `false` in `~/.kiro/settings/cli.json`), because a `/goal` workflow skips the pack's hooks. `kiroctl update` does the same.
+10. **0.11.0 (beta).** Writes the global hook file `~/.kiro/hooks/revstar-workbench.json`. It runs `mission-pause`, `mission-state-protect` and `git-protect-gate` for any agent that isn't `dev`, `coder` or `scout`. See [Gates → The global hook](/capabilities/gates/#the-global-hook).
 
 ## 4. Verify
 
@@ -319,7 +325,7 @@ kiroctl doctor --governance
 ```
 
 `kiroctl doctor` reports the install is healthy; the gate selftest prints
-**60/60**; governance reports **OK**.
+`N/N passed` and every case must pass; governance reports **OK**.
 
 ---
 
@@ -410,6 +416,9 @@ The gear icon opens the **Settings** drawer:
 - **Mission Control** — sign in / sign out, and the **Connection** health rows
   (sign-in, telemetry, queue, project) with **Check now**. See
   [Sign in to Mission Control](#5e-sign-in-to-mission-control).
+- **Gates** — **0.11.0 (beta).** An **ADO receipt gate** checkbox, off by default, with its status
+  (armed, off by choice, not armed). Only a person can change it. See
+  [Gates](/capabilities/gates/#the-ado-receipt-gate-in-the-app).
 - **Unused clients** — clients no projects currently use, with a one-click delete.
 
 <Aside type="tip">
