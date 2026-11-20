@@ -1,6 +1,6 @@
 ---
 title: Skills
-description: The 22 on-demand playbooks RevStar.ai installs, grouped by purpose.
+description: The 28 on-demand playbooks RevStar.ai installs, grouped by purpose.
 ---
 
 A skill is a playbook that loads **on demand** — its metadata is available at
@@ -34,7 +34,7 @@ that fits, most often `dev`.
 
 | Skill | When it fires |
 | --- | --- |
-| `mission` | Setting, updating, or clearing the standing macro-goal for multi-phase work. |
+| `mission` | Setting, updating, or clearing the standing macro-goal for multi-phase work. **0.11.0 (beta).** Also the `/mission` slash command, for a multi-phase goal that no other shortcut fits. |
 | `qa` | Running the QA protocol against staging. Scoped by default — the change plus every connected page, endpoint and job, across the project's repos; full only when you ask for it or the grilled plan declares it (`## QA Scope`); or "today". |
 | `design` | Building or restyling any UI surface — builds to the project's **design authority** (the plan's pinned `## Design Authority`: a customer mockup, or the committed brand guide) and enforces the full component state set, instead of inventing a second design language. |
 | `brand-guide` | Captures a web app's existing design language into a committed, reviewed `.kiro/context/brand-guide.md` (tokens + component catalogue w/ states + layout + icon/motion + screenshots + known inconsistencies), generated from the codebase design system crossed with the rendered app. The design source-of-truth the `design` skill builds to and `qa` enforces. First run on a UI project prompts to generate it; re-run on a redesign. |
@@ -65,4 +65,4 @@ kiroctl onboard --kind skill --name <name> --source <path>
 ```
 
 This is governance-gated — `kiroctl doctor --governance` checks that a
-registered skill is well-formed before it's trusted alongside the built-in 21.
+registered skill is well-formed before it's trusted alongside the built-in 28.

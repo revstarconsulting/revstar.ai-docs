@@ -1,12 +1,12 @@
 ---
 title: Gates
-description: The 17 hooks wired into the agents. Five are armed by default (four safe ones, and mission-state-protect from 0.11.0), seven are always on, the rest are inert until you arm them, and all of them fail open.
+description: The 18 hooks wired into the agents. Five are armed by default (four safe ones, and mission-state-protect from 0.11.0), eight are always on, the rest are inert until you arm them, and all of them fail open.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 Gates are hooks wired into the agents' tool calls. One property holds for all
-seventeen, without exception, and two more describe when a gate is on:
+eighteen, without exception, and two more describe when a gate is on:
 
 - **Four safe hooks are armed for you.** `mission-inject`, `mission-turn-recorder`,
   `session-context` and `update-notify` can't block anything: they inject text or
@@ -15,7 +15,7 @@ seventeen, without exception, and two more describe when a gate is on:
 - **`mission-state-protect` is armed by default too (0.11.0, beta).** It does refuse, but
   only an agent's edit of mission state and a mission cleared before its audit. See
   [`mission-state-protect` is armed by default](#mission-state-protect-is-armed-by-default).
-- **Seven hooks are always on, and the other blocking gates are inert until armed.**
+- **Eight hooks are always on, and the other blocking gates are inert until armed.**
   The always-on hooks are `telemetry-emit`, `mc-signin-gate` and `mc-session-health`,
   which are always on because telemetry and the Mission Control sign-in are mandatory
   RevStar policy (see [Telemetry](/capabilities/telemetry/)); `mobile-guard` and
@@ -23,7 +23,9 @@ seventeen, without exception, and two more describe when a gate is on:
   and shared (see [Mobile app QA](/workflows/mobile-qa/)); `mission-pause`, the
   emergency brake (see [Stopping a mission](/workflows/missions/#stopping-a-mission)); and
   `broker-merge-gate` (0.10.0, beta), which registers a lane mission's merges with the broker and does nothing outside a
-  lane (see [Missions in a lane](/workflows/missions/#missions-in-a-lane)).
+  lane (see [Missions in a lane](/workflows/missions/#missions-in-a-lane)); and
+  `tool-watchdog` (0.11.0, beta), which ends a stuck tool call (see
+  [The stuck-tool watchdog](#the-stuck-tool-watchdog)).
   Every other gate does nothing until a `.enabled` flag file exists for it. Arm those
   globally or per project:
 
@@ -37,7 +39,7 @@ seventeen, without exception, and two more describe when a gate is on:
   still off by default: a plain install and `kiroctl update` do not arm it, and a gate with a
   `.disabled` file stays off.
 
-- **Fails open.** (All seventeen.) A gate that errors or isn't armed never blocks the call it
+- **Fails open.** (All eighteen.) A gate that errors or isn't armed never blocks the call it
   would otherwise inspect. An armed gate that doesn't fire is worse than no
   gate at all, because it's trusted — arm one at a time and verify it.
 
@@ -47,7 +49,7 @@ gate should be stopping something and isn't, confirm the flag file exists
 before assuming the rule doesn't apply.
 </Aside>
 
-## The seventeen gates
+## The eighteen gates
 
 | Gate | Trigger | Kind | What it does |
 | --- | --- | --- | --- |
@@ -68,6 +70,7 @@ before assuming the rule doesn't apply.
 | `mobile-sweep` | Session start (`dev`) | always-on inject | Releases devices a crashed session left booked and reports any it could not release or could not identify. Never blocks. |
 | `mission-pause` | Every tool call (`dev`, `coder`, `scout`) | always-on block | The emergency brake. Refuses every tool call in a session whose mission a person paused, and in every session on the machine while **Stop all agents** is on. Lets only the `goal` completion tool through. Fails open on its own errors. See [Stopping a mission](/workflows/missions/#stopping-a-mission). |
 | `broker-merge-gate` | shell (`dev`, `coder`) | always-on block | **0.10.0 (beta).** In a lane repo during a mission, registers the PR under the mission's broker lease (`add-pr`) before `gh pr merge` goes through. Refuses the merge when the broker says the mission doesn't hold the lane (naming the holder), while the mission is queued or its lane is lost, and for `gh pr merge --auto`. Lets the merge through with a warning when the broker can't be asked on a fail-open lane. Does nothing outside a lane repo or a mission. See [below](#what-broker-merge-gate-refuses). |
+| `tool-watchdog` | Every tool call, pre and post (`dev`, `coder`, `scout`) | always-on | **0.11.0 (beta).** Ends a tool call that has run for 30 minutes without a result, and a chat stuck between tools after 20 minutes with no hook event and no tool process. A person can turn it off with `tool-watchdog.disabled`. See [The stuck-tool watchdog](#the-stuck-tool-watchdog). |
 
 ## What `broker-merge-gate` refuses
 

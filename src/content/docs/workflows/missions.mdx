@@ -73,6 +73,7 @@ Start the mission by typing a slash command in that chat:
 | `/build-plan [plan=<path>] [branch=<name>]` | Builds every phase of the plan. `plan` defaults to `plan.md`. |
 | `/fix-bugs doc=<path> [branch=<name>]` | Reproduces, fixes and QA-verifies every bug in the report. |
 | `/ci-qa-coverage [branch=<name>]` | Runs a full QA audit and catalogs the CI/CD test gaps. |
+| `/mission` | **0.11.0 (beta).** Runs the `mission` skill: sets or tracks any multi-phase goal as the mission in this chat. Use it when no shortcut above fits. |
 
 You can also ask the `mission` skill: "set this as the mission". There is no `--max`.
 The app's **Shortcuts** drawer shows these lines, ready to paste into the chat.
@@ -707,7 +708,6 @@ gate is armed, and a refused clear exits 1, keeps the mission and sends nothing:
 - **A mission with no criteria is refused** when it was started with `--kind`, `--plan` or
   `--bug`: decompose the plan with `--accept-add` first. **0.11.0 (beta).** A ledger that holds
   *only* `access-descoped:*` / `skipped:*` criteria counts as having none.
-  `--bug`: decompose the plan with `--accept-add` first.
 
 Two things do not block a clear. The exit is then **PARTIAL**, not COMPLETE:
 
@@ -1058,7 +1058,9 @@ from the running app and is refused while stop-all is on or the caller's mission
 
 <Aside type="note" title="0.10.0 (beta)">
 New in 0.10.0, on the beta channel first. It is promoted to stable after one real lane mission on beta claims its lane,
-merges at least one PR and releases it.
+merges at least one PR and releases it. **0.11.0 (beta).** 0.10 and 0.11 go to stable together, by hand. That happens
+once one real lane mission claims, merges and releases cleanly in the broker audit, and one real mission clears under
+the new rules with the completion verifier's receipt present and no false blocks on ordinary work in that session.
 </Aside>
 
 Mission Control runs parallel **lanes**: lane-1 deploys `test` to `test-env`, lane-2 deploys `test-2` to `test-2-env`. A
