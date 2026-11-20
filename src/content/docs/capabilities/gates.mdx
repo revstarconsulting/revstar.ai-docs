@@ -308,6 +308,22 @@ only if its mission still exists and is still pre-approved at that moment, so a 
 (`kiro-cli chat --agent-engine v2`) records the chat loop, so a second chat open in the same folder can't make the mission look
 dead. `tool-watchdog.disabled` turns this check off too.
 
+
+**0.11.2: every chat, not only missions.** The same check now covers every `dev`, `coder` and `scout` chat on the v2
+engine. Outside a mission, when a chat has had no hook event and nothing running for 20 minutes, the watchdog ends
+that chat, because Ctrl+C and `/compact` cannot recover a wedged engine. The conversation is saved, and the next chat
+you start in that folder tells you once:
+
+```
+[tool-watchdog] your last chat here stopped responding for 25 min and was ended at 14:02. Continue it with `cd '<folder>' && kiro-cli chat --resume-id <id>`.
+```
+
+- A tool call that is open with nothing running (for example one waiting for your approval) gets an hour outside a
+  mission, not 20 minutes (`KIRO_STALL_OPEN_INTERACTIVE_SEC`).
+- A chat waiting for your answer (an open `user_input` call) is never ended.
+- `KIRO_STALL_END_INTERACTIVE=0` keeps the check but never ends a non-mission chat (you only get the notice).
+- `node <pack>/gates/tool-watchdog.js status` lists recently ended chats with their resume commands.
+- Chats on the older v1 engine are not covered yet.
 ## Mission Control sign-in
 
 RevStar SOP standards and adoption telemetry both run under your **Mission

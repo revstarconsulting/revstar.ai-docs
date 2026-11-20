@@ -494,12 +494,29 @@ channels. `kiroctl version` and `kiroctl doctor` show your current channel and
 version, and the GUI header shows them too.
 
 <Aside type="note">
-Existing installs made before channels existed continue to track **beta** (the
-original line) — there is no silent migration. New features land on **beta**
-first; anything not yet promoted to stable is marked *beta* on the page. Switch
-channels with `kiroctl update --channel beta` or `kiroctl update --channel stable`
-(or by re-installing with `--channel`).
+**0.11.2.** An install made before channels existed, with no channel recorded, follows the branch its clone is on
+(`v1` is beta, `stable` is stable), and stable when there is no clone to read. Before 0.11.2 the updater read a
+missing channel as beta while the installer recorded stable, so such an install could run beta code labelled
+stable. New features land on **beta** first; anything not yet promoted to stable is marked *beta* on the page.
+Switch channels with `kiroctl update --channel beta` or `kiroctl update --channel stable` (or by re-installing
+with `--channel`).
 </Aside>
+
+### Nothing moves you between channels by itself
+
+**0.11.2.** Only `--channel` changes your channel:
+
+- `KIRO_CHANNEL` set to a different channel than the one recorded is refused, naming both. Before, it switched
+  the clones to the other line without recording it.
+- An update run without a terminal (from the app or a script) on a stable install whose clone sits on `v1` is
+  refused with **UPDATE NOT APPLIED** and both fixes: `kiroctl update --channel stable` puts the clone back on
+  stable, `kiroctl update --channel beta` keeps beta on purpose. Before, it quietly switched the install to beta.
+- A channel value other than `beta` or `stable` (any case) is refused, never read as beta.
+- `kiroctl doctor` has a **channel-code** row. It FAILs when an install says stable but runs beta code, including
+  an install that is a plain copy rather than a git clone, and the app header says
+  *stable (running beta code)*.
+- The bootstrap scripts put an existing clone on its channel's branch (fast-forward only) instead of pulling
+  whatever branch it is on.
 
 ### A channel is a branch
 
