@@ -487,6 +487,35 @@ Anything grilled or re-grilled from 0.9.0 gets both.
 **Which probe is missing.** A preflight that finds a probe missing now names the probe
 (the token or probe name and its detail), not only the category.
 
+**Every problem is shown.** **0.11.0 (beta).** The preflight prints every problem line from the
+contract check, not only the last one. Undeclared ownership entities and columns come with a
+ready-to-paste `"declared": [ ... ]` snippet.
+
+**PROPOSED entries.** **0.11.0 (beta).** An access entry (or the `backend`) is **PROPOSED** when it has
+`"status": "PROPOSED"`, or the word PROPOSED appears in its name or probe. A PROPOSED entry counts as
+undeclared and covers nothing until a person confirms it. Its probe is never run. A plan dependency
+covered only by a PROPOSED entry fails the preflight, and that failure can't be waived. This lets an
+agent draft an entry without the draft passing for a real check.
+
+**`covers` on the backend.** **0.11.0 (beta).** `backend` takes `"covers": "<plan dependency id>"`,
+the same as an access entry.
+
+**Probes per platform.** **0.11.0 (beta).** A probe can be a command per platform. See
+[Values that differ per machine](/workflows/qa-and-design/#values-that-differ-per-machine).
+
+**Editing access in the app.** **0.11.0 (beta).** The project page's **QA environment** card has an
+**Access** section that lists the contract's access entries: name, probe, what it covers, and a
+**PROPOSED** pill. A person can:
+
+- add or edit an entry;
+- set **No external access**;
+- **Confirm** a PROPOSED entry.
+
+It writes the committed `qa-contract.json` `access` block. It refuses a `covers` value that isn't an
+id (letters, digits, `_`, `.`, `-`). It refuses any field that looks like a secret or token: refer to a
+secret by its environment variable name. Entries with per-platform probes, and the backend row, are
+edited in the file or the QA form, not here. Agents can read the section but can't save it.
+
 Two checks are **advisory only** — they warn and proceed:
 
 - **Estimate.** A feature mission with a plan but no estimate (or a stale one) on
@@ -1017,6 +1046,17 @@ fix loop, and gives it back when the mission ends. A mission outside a lane beha
 `.mission-lane` at its root or one folder up (the root wins). The templates `.mission-lane.lane-1` / `.lane-2` don't
 count. The resource is the registry entry whose `branch` matches the lane file's `branch_base`, read fresh every time.
 This works for any repo that opts in, not only the Mission Control web repo.
+
+**The lane's app URL.** **0.11.0 (beta).** `.mission-lane` may carry `app_url: https://...` (http or https
+only). While the mission holds that lane, QA uses the lane's `app_url` as its base URL instead of
+`baseUrl` in `qa-contract.json`. `qa-reachable` checks that URL and says so, and the injected
+`<mission-lane>` block tells the agent. With no lane, or a lane with no `app_url`, `baseUrl` applies as before.
+
+**Linked repos.** **0.11.0 (beta).** Missions, the broker, the merge gate and `git-protect-gate` compare
+repo paths by **real path**. A repo the app linked (symlinked) into a project folder claims, merges and
+releases under one lane entry, not two. A `.mission-lane` in the project folder applies to the repos
+that project links in (`linkedFrom` in `.kiro/repos.json`). It is read after the repo's own file and its
+parent folder's.
 
 | When | What the pack does |
 | --- | --- |

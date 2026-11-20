@@ -153,6 +153,9 @@ kiroctl project set-env --dir <project> \
 The GUI's **New project** wizard has a QA step that captures the same fields —
 staging/dev URL, environment, target branch, and backend (SSH/DB) access — and
 the project detail's **QA environment** card lets you edit them any time after.
+**0.11.0 (beta).** The card saves the backend query and probe to the machine-local
+`.kiro/qa-contract.local.json`, not the committed contract (see
+[Values that differ per machine](#values-that-differ-per-machine)).
 Linking scaffolds a minimal `qa-contract.json` and a `qa-test-cases/test-credentials.md`
 stub (list your test users there), and **never overwrites** a contract you've
 hand-authored. The target branch is injected as `TARGET_BRANCH` for the mission,
@@ -204,6 +207,60 @@ Headless is **not** a downgrade — it's the same engine with identical layout,
 overlay and contrast, and the screenshots are the proof regardless.
 </Aside>
 
+### Values that differ per machine
+
+**0.11.0 (beta).** Some contract values are yours alone: your own AWS profile, an SSH alias, a local
+path. Keep those out of the committed `qa-contract.json`.
+
+**The local file.** `<repo>/.kiro/qa-contract.local.json` is merged over `qa-contract.json` by every
+pack reader. Objects merge by key. Arrays and plain values in the local file replace the committed
+ones. A local file that isn't valid JSON is reported as a problem that names the file.
+
+```json
+{
+  "backend": { "probe": "aws sts get-caller-identity --profile my-profile" }
+}
+```
+
+- **The app saves Backend access there.** The project's QA environment card writes the backend query
+  and probe to the local file, not to the committed contract. An older committed value that equals
+  what the app manages is moved to the local file on the next save. A different value you set by hand
+  is left alone.
+- **It is not committed.** `kiroctl`'s managed `.gitignore` block now lists
+  `.kiro/qa-contract.local.json` and `.qa-gate/`.
+
+**Per-platform probes.** Any probe can be a string or an object with one command per platform:
+
+```json
+{
+  "backend": {
+    "probe": {
+      "default": "psql -d appdb -Atc 'select 1'",
+      "win32": "psql.exe -d appdb -Atc \"select 1\"",
+      "darwin": "/opt/homebrew/bin/psql -d appdb -Atc 'select 1'"
+    }
+  }
+}
+```
+
+This works for `backend.probe`, `egress[].probe`, `access.stagingProbe`, the `probe` of each
+`access` token, deploy, paid API and custom entry, and `access.qaLogin.probe`. This machine's
+platform (`win32`, `darwin` or `linux`) is used first, then `default`. When neither exists, the
+probe counts as **not declared on this machine**, and the message gives the exact
+`"<platform>": "<command>"` line to add. A `backend.query` that contains `{sql}` and is used as a
+probe now runs with `SELECT 1` in its place.
+
+**The backend can name what it covers.** `backend` takes `"covers": "<plan dependency id>"`, the
+same as an access entry (see [Access: you must declare it](/workflows/missions/#access-you-must-declare-it)).
+
+**The contract check's receipt.** `qa-contract-validate.js` writes `.qa-gate/close-receipts/contract.json`
+under the **project root**: the folder that holds the contract, or `--root`. It never writes it in the
+folder you ran the command from. Every `.qa-gate/` folder now holds a `.gitignore` containing `*`, so
+QA receipts never appear in `git status`. No repo `.gitignore` is edited for this.
+
+**Lane URL.** When a mission holds a [lane](/workflows/missions/#missions-in-a-lane) whose
+`.mission-lane` has an `app_url`, QA uses that URL instead of the contract's `baseUrl`.
+
 ## Scoped runs: the change and everything connected to it
 
 A scoped run doesn't guess what the change affected. It works it out from git and
@@ -226,6 +283,12 @@ tests every connected part of the code:
   loads with `<script src>` reaches that page. Code that reaches no entry point at all
   (build config, dead code, DI wiring) is listed as an **unclassified** target, so it still
   gets a look instead of silently dropping out.
+- **Lazy-loaded pages:** **0.11.0 (beta).** A page loaded through any wrapper around
+  `() => import('./Page')` is treated like `React.lazy`. That covers `lazyImportRetry(() => import('./Page'))`
+  and `utils.lazyRetry(...)`. A change to a component only one page uses selects only that page.
+  `.then(m => m.Named)` binds the named export. A wrapper that takes a path string, such as
+  `lazyPage('./pages/X')`, is listed in the contract:
+  `"impact": { "lazyWrappers": ["lazyPage"] }`.
 
 **Which branch it measures against.** The first of these that is set and exists wins:
 
