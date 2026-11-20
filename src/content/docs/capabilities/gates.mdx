@@ -301,7 +301,10 @@ hook event and no tool process for **20 minutes**, it:
 - ends the chat itself, only for a **pre-approved** mission. Nobody is there to quit it, and nothing is lost: the mission, task
   list and ledger are on disk. A mission you are attending is never ended; you see the notice instead.
 
-A sub-agent that is still working counts as activity, so a long delegation is not mistaken for a hang. Only a v2 mission chat
+A sub-agent that is still working counts as activity, so a long delegation is not mistaken for a hang. **0.11.1.** A long
+command that is still running counts too, and when one finishes the 20 minutes start again from that moment. In 0.11.0 a command
+that ended right at the 20-minute mark could close a working chat ("Agent connection closed unexpectedly"). The chat is ended
+only if its mission still exists and is still pre-approved at that moment, so a chat that has cleared its mission is left alone. Only a v2 mission chat
 (`kiro-cli chat --agent-engine v2`) records the chat loop, so a second chat open in the same folder can't make the mission look
 dead. `tool-watchdog.disabled` turns this check off too.
 
