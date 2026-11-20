@@ -20,7 +20,7 @@ governed capability set.
 **Inert until armed.** Installing doesn't change what your tools are allowed to do.
 Gates — the enforcement layer — exist as scripts on disk but refuse nothing until you
 create their flag file. The exceptions are four safe hooks that only inject text or
-record receipts, and from 0.11.0 (beta) `mission-state-protect`, which guards mission state (the installer
+record receipts, and from 0.11.0 `mission-state-protect`, which guards mission state (the installer
 arms these five, and a `.disabled` file turns one off for good),
 and the always-on hooks: telemetry and Mission Control sign-in, the Mobile Next
 safeguards, the mission emergency brake, the lane merge gate (`broker-merge-gate`) and the stuck-tool watchdog. A pack that starts blocking the moment it

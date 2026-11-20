@@ -28,13 +28,13 @@ that fits, most often `dev`.
 | `changelog` | Release notes and changelogs from diffs or commit history. |
 | `status` | Client-facing status updates from vault state and recent work. |
 | `handoff` | Session context summary for handing work off to a sibling project/repo. |
-| `submit` | The pre-PR pipeline — secret scan, gates, review, then commit/push/PR. Commits in logical, reviewable units (never one giant commit) and fills the project's PR/MR template when it has one, instead of a freeform description. Never auto-merges outside a mission; **0.11.0 (beta).** in a mission the phase audit is the review. |
+| `submit` | The pre-PR pipeline — secret scan, gates, review, then commit/push/PR. Commits in logical, reviewable units (never one giant commit) and fills the project's PR/MR template when it has one, instead of a freeform description. Never auto-merges outside a mission; **0.11.0.** in a mission the phase audit is the review. |
 
 ## Autonomy, QA & design
 
 | Skill | When it fires |
 | --- | --- |
-| `mission` | Setting, updating, or clearing the standing macro-goal for multi-phase work. **0.11.0 (beta).** Also the `/mission` slash command, for a multi-phase goal that no other shortcut fits. |
+| `mission` | Setting, updating, or clearing the standing macro-goal for multi-phase work. **0.11.0.** Also the `/mission` slash command, for a multi-phase goal that no other shortcut fits. |
 | `qa` | Running the QA protocol against staging. Scoped by default — the change plus every connected page, endpoint and job, across the project's repos; full only when you ask for it or the grilled plan declares it (`## QA Scope`); or "today". |
 | `design` | Building or restyling any UI surface — builds to the project's **design authority** (the plan's pinned `## Design Authority`: a customer mockup, or the committed brand guide) and enforces the full component state set, instead of inventing a second design language. |
 | `brand-guide` | Captures a web app's existing design language into a committed, reviewed `.kiro/context/brand-guide.md` (tokens + component catalogue w/ states + layout + icon/motion + screenshots + known inconsistencies), generated from the codebase design system crossed with the rendered app. The design source-of-truth the `design` skill builds to and `qa` enforces. First run on a UI project prompts to generate it; re-run on a redesign. |
@@ -45,7 +45,7 @@ that fits, most often `dev`.
 | `fix-bugs` | The "reproduce, fix and QA-verify every reported bug" slash command — treats every item in a bug report as an active bug, reproduces each in Playwright, fixes at the owning layer, re-verifies, then audits and clears. Invoke: `/fix-bugs doc=<path> [branch=<branch>]` — `doc=` is the bug-report path(s); `branch=` as above. |
 | `ci-qa-coverage` | The "explore + full QA + find the CI/CD test gaps" slash command — explores the repos you can reach and the linked ADO project, runs a **full `qa` audit**, inventories existing automated coverage, then catalogs every QA-exercised behavior not yet covered as **CI/CD regression candidates** (`qa-reports/ci-regression-candidates.md`). It produces the catalog the automation repo consumes; it does **not** write the tests (that's the follow-up). Invoke: `/ci-qa-coverage [branch=<branch>]`. |
 
-The project GUI's **Shortcuts** drawer shows these slash-command lines, ready to paste into a v2 `dev` chat (see [Missions](/workflows/missions/#running-a-mission-in-a-dev-chat)). It also ships two free-form quick prompts that wrap the `qa` skill directly: **"QA full"** and **"QA full + fix issues"** (then the `fix-bugs` skill), and you can save per-project variations alongside them. **0.11.0 (beta).** The shortcuts no longer start with `/goal`.
+The project GUI's **Shortcuts** drawer shows these slash-command lines, ready to paste into a v2 `dev` chat (see [Missions](/workflows/missions/#running-a-mission-in-a-dev-chat)). It also ships two free-form quick prompts that wrap the `qa` skill directly: **"QA full"** and **"QA full + fix issues"** (then the `fix-bugs` skill), and you can save per-project variations alongside them. **0.11.0.** The shortcuts no longer start with `/goal`.
 
 ## Azure DevOps, KB & authoring
 

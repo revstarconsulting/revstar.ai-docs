@@ -294,12 +294,12 @@ Every install arms five hooks: the four **safe gates** (`mission-inject`, `missi
 gates can't block anything: they inject mission and session context, remind you of updates,
 and record the turn receipts that measure a mission's autonomous hours.
 `mission-state-protect` refuses an agent's edits of mission state. `--arm-safe` is still
-accepted and does the same. **0.11.0 (beta).** The blocking gates other than
+accepted and does the same. **0.11.0.** The blocking gates other than
 `mission-state-protect` stay inert until you arm them. To keep one of the five off for good,
 create `~/.kiro/gates/<name>.disabled`; installs and `kiroctl update` never re-arm it. See
 [Gates → The gates armed by default](/capabilities/gates/#the-four-safe-hooks-are-armed-by-default).
 `install.ps1` arms the same five. To arm every gate at once, run `./install.sh --arm-all`
-(`.\install.ps1 -ArmAll` on Windows). **0.11.0 (beta).** That now includes `ado-receipt-gate`,
+(`.\install.ps1 -ArmAll` on Windows). **0.11.0.** That now includes `ado-receipt-gate`,
 which stays off in a plain install or `kiroctl update`.
 
 ### What the bootstrap does
@@ -313,8 +313,8 @@ which stays off in a plain install or `kiroctl update`.
 6. Wires the Playwright and Azure DevOps MCP servers.
 7. Links the `kiroctl` binary onto your `PATH` and installs the desktop launcher.
 8. Records an install manifest so `kiroctl doctor`/`kiroctl update` know the layout.
-9. **0.11.0 (beta).** Turns kiro-cli Workflows off (`chat.enableWorkflows` is set to `false` in `~/.kiro/settings/cli.json`), because a `/goal` workflow skips the pack's hooks. `kiroctl update` does the same.
-10. **0.11.0 (beta).** Writes the global hook file `~/.kiro/hooks/revstar-workbench.json`. It runs `mission-pause`, `mission-state-protect` and `git-protect-gate` for any agent that isn't `dev`, `coder` or `scout`. See [Gates → The global hook](/capabilities/gates/#the-global-hook).
+9. **0.11.0.** Turns kiro-cli Workflows off (`chat.enableWorkflows` is set to `false` in `~/.kiro/settings/cli.json`), because a `/goal` workflow skips the pack's hooks. `kiroctl update` does the same.
+10. **0.11.0.** Writes the global hook file `~/.kiro/hooks/revstar-workbench.json`. It runs `mission-pause`, `mission-state-protect` and `git-protect-gate` for any agent that isn't `dev`, `coder` or `scout`. See [Gates → The global hook](/capabilities/gates/#the-global-hook).
 
 ## 4. Verify
 
@@ -416,7 +416,7 @@ The gear icon opens the **Settings** drawer:
 - **Mission Control** — sign in / sign out, and the **Connection** health rows
   (sign-in, telemetry, queue, project) with **Check now**. See
   [Sign in to Mission Control](#5e-sign-in-to-mission-control).
-- **Gates** — **0.11.0 (beta).** An **ADO receipt gate** checkbox, off by default, with its status
+- **Gates** — **0.11.0.** An **ADO receipt gate** checkbox, off by default, with its status
   (armed, off by choice, not armed). Only a person can change it. See
   [Gates](/capabilities/gates/#the-ado-receipt-gate-in-the-app).
 - **Unused clients** — clients no projects currently use, with a one-click delete.
@@ -497,7 +497,7 @@ version, and the GUI header shows them too.
 **0.11.2.** An install made before channels existed, with no channel recorded, follows the branch its clone is on
 (`v1` is beta, `stable` is stable), and stable when there is no clone to read. Before 0.11.2 the updater read a
 missing channel as beta while the installer recorded stable, so such an install could run beta code labelled
-stable. New features land on **beta** first; anything not yet promoted to stable is marked *beta* on the page.
+stable. New features land on **beta** first; anything not yet promoted to stable is marked *beta* on the page. Stable was brought up to 0.11.2 on 2026-11-20.
 Switch channels with `kiroctl update --channel beta` or `kiroctl update --channel stable` (or by re-installing
 with `--channel`).
 </Aside>

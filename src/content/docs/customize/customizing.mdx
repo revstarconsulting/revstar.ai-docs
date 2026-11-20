@@ -48,7 +48,7 @@ Gate hooks have their own switches, in `~/.kiro/gates/`
 - `<name>.enabled` arms a blocking gate. Nothing changes until you create it.
 - `<name>.disabled` turns one of the five hooks the installer arms (the four **safe hooks**
   `mission-inject`, `mission-turn-recorder`, `session-context` and `update-notify`, and
-  `mission-state-protect` from 0.11.0 (beta)) off for good. The installer
+  `mission-state-protect` from 0.11.0) off for good. The installer
   arms those by default, and `kiroctl update` re-arms them every time, except a hook
   with a `.disabled` file. `kiroctl doctor` and Diagnostics show it as *off by choice*.
   Delete the file to let installs arm it again.
@@ -57,7 +57,7 @@ Gate hooks have their own switches, in `~/.kiro/gates/`
 
 Only a person creates these files; agents are refused. `mission-pause` and
 `broker-merge-gate` have no switch: an emergency brake you can disarm isn't one.
-**0.11.0 (beta).** `tool-watchdog` is the one always-on gate a person can turn off, with
+**0.11.0.** `tool-watchdog` is the one always-on gate a person can turn off, with
 `~/.kiro/gates/tool-watchdog.disabled`. See [Gates](/capabilities/gates/).
 
 ## Recommended workflow
