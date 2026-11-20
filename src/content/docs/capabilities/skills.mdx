@@ -28,7 +28,7 @@ that fits, most often `dev`.
 | `changelog` | Release notes and changelogs from diffs or commit history. |
 | `status` | Client-facing status updates from vault state and recent work. |
 | `handoff` | Session context summary for handing work off to a sibling project/repo. |
-| `submit` | The pre-PR pipeline — secret scan, gates, review, then commit/push/PR. Commits in logical, reviewable units (never one giant commit) and fills the project's PR/MR template when it has one, instead of a freeform description. |
+| `submit` | The pre-PR pipeline — secret scan, gates, review, then commit/push/PR. Commits in logical, reviewable units (never one giant commit) and fills the project's PR/MR template when it has one, instead of a freeform description. Never auto-merges outside a mission; **0.11.0 (beta).** in a mission the phase audit is the review. |
 
 ## Autonomy, QA & design
 
@@ -52,7 +52,7 @@ The project GUI's **Shortcuts** drawer shows these slash-command lines, ready to
 | Skill | When it fires |
 | --- | --- |
 | `ado-telemetry` | Read-only Azure DevOps pulls — sprint status, work items, roadmap. |
-| `ado-write` | Creating or updating Azure DevOps work items to exact conventions. Also drives the enforced item lifecycle — `Active` + assigned at start; at done, moves the item to the ready-for-QA/UAT state, assigns it, and comments — and records a receipt (checked by `ado-receipt-gate`). |
+| `ado-write` | Creating or updating Azure DevOps work items to exact conventions. Also drives the enforced item lifecycle — `Active` (or the client's start state, 0.11.0 beta) + assigned at start; at done, moves the item to the ready-for-QA/UAT state, assigns it, and comments — and records a receipt (checked by `ado-receipt-gate`). |
 | `kb` | Regenerating the project's living knowledge base — architecture, ERD, API, infra docs. |
 | `project-map` | Auditing an unfamiliar or freshly-linked repo into a concise `.kiro/context/architecture.md` navigation map, so sessions orient fast. Manual, per-project. |
 | `project-context` | Maintaining the committed `.kiro/context/` bundle (architecture, gotchas, decisions) so a different developer can pick the project up from a clone. Auto-loads via a committed steering pointer; refreshed at the end of a mission. |

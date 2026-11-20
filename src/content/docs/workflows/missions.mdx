@@ -670,6 +670,13 @@ with no criteria has nothing to close and holds nothing up.
 - `--clear` is refused unless every phase that has criteria is closed. `--clear --failed` is not
   held to it.
 
+**Review before merge.** **0.11.0 (beta).** In a mission no person reviews the code before it merges. The
+phase audit is the review, and it happens after the merge: the completion verifier, and the phase close
+with its scoped QA on staging. The merge gate does not wait for the audit, because QA on staging needs
+the merge first. If the audit fails, fix it forward with new PRs. The next phase can't start until the
+audit passes. The `submit` skill's "never auto-merge" applies outside a mission. The merge itself is
+checked by [`git-protect-gate`](/capabilities/gates/#the-merge-check-git-protect-gate).
+
 The plain `mission-state.js` show and `--accept-show` list each phase as open, closed or reopened with its MET
 count, and the mission chat's next-step prompt says so when the lowest open phase has every
 criterion MET: run its scoped QA, then `--phase-end N`. The honest-exit record carries a `phases`
@@ -733,6 +740,24 @@ session on `dev`, `coder` or `scout` unless `KIROCTL_PERSON_ACTION=1` is set, wh
 **End** in the app and `kiroctl missions end` set themselves. A plain terminal, where no
 agent can be found, is allowed. The variable stops an agent failing its own mission by
 reflex; it doesn't stop one that sets it on purpose.
+
+**What Mission Control receives.** **0.11.0 (beta).** `--clear --failed` sends a `mission_failed` event whose
+reason is one of `abandoned`, `error`, `blocked` or `timeout`. If the text you pass is exactly one of those
+four words, it is the reason. Any other text becomes the reason `abandoned`, with your text as the detail,
+cut to 200 characters. **End** in the app and `kiroctl missions end` send `abandoned` with the detail
+"ended from the app". Before, Mission Control rejected the event, so an ended mission never showed as failed.
+
+**Clearing without the QA fan-out record.** **0.11.0 (beta).** When the [QA fan-out gate](/capabilities/gates/#the-qa-fan-out-gate)
+can't be met, a person can waive it from their own terminal:
+
+```sh
+node <pack>/bin/mission-state.js --clear --ack-skipped qa
+```
+
+The mission then clears without the fan-out record and ends **PARTIAL**, with the criterion `skipped:qa`
+that is never met and names who acknowledged it. An agent is refused: no terminal, a pack agent
+(`dev`, `coder`, `scout`) and a `--preapproved` mission all fail. Only `qa` is accepted here; other
+checks are waived at `--init` (see [The preflight gate](#the-preflight-gate)).
 
 ### The completion verifier
 
@@ -950,7 +975,7 @@ Each project's page also has a **Mission** card for its own mission.
 | --- | --- |
 | **Pause** | The agents working on that mission, and their sub-agents, refuse their next tool call. The mission, task list and ledger are kept. Asks you to confirm. |
 | **Resume** | Lifts the pause. No confirmation. |
-| **End** | Ends the mission without finishing it. It is recorded as failed ("ended from the app"), so Mission Control sees a `mission_failed`. **0.11.0 (beta).** This is the person's `--clear --failed` path; an agent can't take it. The task list and ledger files stay on disk. Asks you to confirm. |
+| **End** | Ends the mission without finishing it. It is recorded as failed ("ended from the app"), so Mission Control sees a `mission_failed`. **0.11.0 (beta).** The event carries the reason `abandoned` and the detail "ended from the app"; before, Mission Control rejected it. **0.11.0 (beta).** This is the person's `--clear --failed` path; an agent can't take it. The task list and ledger files stay on disk. Asks you to confirm. |
 | **Stop all agents** | Every Kiro agent on the machine refuses its next tool call: `dev`, `coder` and `scout`, mission or not, **including your own interactive session**. Asks you to confirm. |
 | **Resume all** | Lifts stop-all. No confirmation. |
 | **Resume mission** | **0.11.0 (beta).** Opens a terminal with a new `dev` chat in the mission's project (`kiroctl open --run`) whose first message continues the mission. Use it after a chat was closed, crashed or was ended as stuck. It is the main button when no chat is running the mission. If one is running, or it looks stuck, it asks before opening a second chat. It is unavailable, with the reason shown, while the mission is paused or all agents are stopped, and for a folder that isn't a bound project (run `kiroctl open --dir <folder> --run` there instead). |

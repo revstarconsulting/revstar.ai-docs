@@ -44,6 +44,8 @@ For ADO-tracked work, `ado-write` drives the item the branch is bound to
 through a fixed lifecycle:
 
 1. **At start** — the item moves to `Active` and is assigned to the developer.
+   **0.11.0 (beta).** If the client has a [Start state](#set-up-ado-for-a-client-org-project-pat), the item
+   moves to that state instead, walking the client's state path in order when the board requires it.
 2. **At done, before opening the PR** — the item moves to the project's
    ready-for-QA/UAT state (the client's **Done state**), is assigned to the
    **Done assignee**, and gets a comment describing what was done. Hours stay
@@ -61,7 +63,8 @@ touch ~/.kiro/gates/ado-receipt-gate.enabled
 
 It is **disarmed by default** and **fails open** — any uncertainty or error
 allows the PR — and it only fires for ADO-bound `feat/<id>-*` branches. Work on
-any other branch is untouched. See [Gates](/capabilities/gates/).
+any other branch is untouched. **0.11.0 (beta).** The app's Settings → Gates has a checkbox that arms
+and disarms it. See [Gates](/capabilities/gates/#the-ado-receipt-gate-in-the-app).
 
 ## Set up ADO for a client (org, project, PAT)
 
@@ -87,6 +90,26 @@ on the client, once:
   ```sh
   kiroctl client set-ado --slug <client> --ado-pm "Jordan Lee"
   ```
+
+- **Start state** — **0.11.0 (beta).** The board state the item moves to when work starts. Optional. If
+  it is unset, nothing is injected and `ado-write` uses `Active`. Set it in the **Azure DevOps** card, or:
+
+  ```sh
+  kiroctl client set-ado --slug <client> --start-state "Development"
+  ```
+
+  If the board only lets an item move one step at a time, add the **state path**: the states in order,
+  separated by commas. `ado-write` walks it from the first state to the start state.
+
+  ```sh
+  kiroctl client set-ado --slug <client> --start-state "Development" \
+    --state-path "New,Ready to Build,Development,QA"
+  ```
+
+  Rules: the start state must appear in the path when a path is given; a path needs a start state; each
+  state is at most 64 characters; at most 20 states; no commas inside a state and no duplicates. Pass
+  `""` to clear either value. `kiroctl client list` shows them as `start=X path=A>B>C`, and the app's ADO
+  edit form has both fields.
 
 - **Done state** — the board column/state that means *ready for QA/UAT*; the
   lifecycle moves the item here when work is done. If it's unset or non-standard,
@@ -129,6 +152,8 @@ work with zero manual setup:
   requests to.
 - `ADO_DONE_STATE` / `ADO_DONE_ASSIGNEE` — the client's Done state and Done
   assignee, used by the [work-item lifecycle](#the-enforced-work-item-lifecycle).
+- `ADO_START_STATE` / `ADO_STATE_PATH` — **0.11.0 (beta).** The client's Start state and state path. Not
+  injected when unset; `ado-write` then uses `Active`.
 
 `mcp.json` references org/project from the environment
 (`${AZURE_DEVOPS_ORG_URL}` etc.), so a session automatically targets the *bound

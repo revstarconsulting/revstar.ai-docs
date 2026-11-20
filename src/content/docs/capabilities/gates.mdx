@@ -56,8 +56,8 @@ before assuming the rule doesn't apply.
 | `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. Armed by default from 0.11.0 (beta). `mission-state.js` enforces the clear rule itself too, so it holds with the gate off. During an active mission it also refuses an agent's edits to a lane repo's `.mission-lane` file and to `scripts/broker/registry.json` (0.11.0, beta): they hold the lane's protected branches and lease, so a person edits them outside a mission. Reading is fine, the `.mission-lane.lane-1` / `.lane-2` templates are not guarded, and with no active mission both are ordinary files. Its stop-control half is **always on**: it also refuses an agent's attempt to touch the pause and stop-all files, the mission index, a hook's `.disabled` opt-out, the app's token log and mission API, and `kiroctl missions` (except `list`). See [below](#what-mission-state-protect-refuses-even-when-unarmed). |
 | `qa-render-gate` | fetch | block | Forces a real-browser render during QA instead of accepting a fetch as a visual check. A `mobile` run is not exempt: web pages still need the browser. |
 | `qa-report-gate` | write | block | Refuses a QA report missing `WORKS` + `MATCHES INTENT` verdicts (each with `method: live\|inspection\|code`), render evidence, a real coverage receipt file (full runs), or the adversarial-pass receipt (runs with change items); and any "PASS with note". For a run marked `mobile`, also refuses a report with no fresh device screenshot, a device still booked, a created test account with no cleanup, or no build file id and commit. **0.11.0 (beta).** The heading test (a body that opens like a QA report) applies only to `.md`, `.markdown`, `.txt` and extensionless files, never to code such as `.sh`, `.js` or `.py`; a path under `qa-reports/` is still judged as a report. |
-| `git-protect-gate` | shell | block | Refuses direct commit/merge/push to protected branches and `--no-verify`; allows `gh pr`. In a repo in a Mission Control lane it also protects the lane file's `branch_base` and `pr_base` (0.10.0, beta). **0.11.0 (beta).** Repo paths are compared by real path, so a linked repo is one lane entry. |
-| `ado-receipt-gate` | shell | block | Refuses opening a PR (`gh pr create` / `glab mr create` / `az repos pr create`) for ADO-bound work — a `feat/<id>-*` branch — until the item's status / assignee / comment update is recorded as a receipt. Disarmed by default; fails open (any uncertainty or error allows the PR); fires only on ADO-bound branches. |
+| `git-protect-gate` | shell | block | Refuses direct commit/merge/push to protected branches and `--no-verify`; allows `gh pr`. **0.11.0 (beta).** Also checks a PR before `gh pr merge` ([below](#the-merge-check-git-protect-gate)). In a repo in a Mission Control lane it also protects the lane file's `branch_base` and `pr_base` (0.10.0, beta). **0.11.0 (beta).** Repo paths are compared by real path, so a linked repo is one lane entry. |
+| `ado-receipt-gate` | shell | block | Refuses opening a PR (`gh pr create` / `glab mr create` / `az repos pr create`) for ADO-bound work — a `feat/<id>-*` branch — until the item's status / assignee / comment update is recorded as a receipt. Disarmed by default; fails open (any uncertainty or error allows the PR); fires only on ADO-bound branches. **0.11.0 (beta).** The app's Settings → Gates has a checkbox for it ([below](#the-ado-receipt-gate-in-the-app)). |
 | `reuse-before-create-gate` | new-file write | soft | Warns once about a duplicate of an existing owner, then relents. |
 | `session-context` | Session start | inject | Injects a git snapshot into context. Armed by default. |
 | `update-notify` | Session start | inject | Reminds you when a newer version is available; rate-limited, fails open. Armed by default. |
@@ -84,6 +84,38 @@ Only in a repo in a Mission Control lane, during an active mission (see
 
 When the broker can't be asked (no AWS session, unreachable, or the CLI can't start) on a fail-open lane, the merge goes
 ahead with a `broker: WARNING …` line, and the PR is registered at the next heartbeat.
+
+## The merge check: `git-protect-gate`
+
+**0.11.0 (beta).** When `git-protect-gate` is armed, it checks the PR before every `gh pr merge`. It runs
+`gh pr view --json isDraft,baseRefName,statusCheckRollup,state` with a 15-second timeout (change it with
+`GIT_PROTECT_GH_TIMEOUT_MS`). It refuses the merge when:
+
+- the PR is a **draft**;
+- a check has **failed**: `FAILURE`, `CANCELLED`, `TIMED_OUT`, `ACTION_REQUIRED` or `STARTUP_FAILURE`, or a status of `FAILURE` or `ERROR`;
+- a check is **pending**, unless the merge uses `--auto`;
+- the PR's base is **not the mission's integration branch**. That branch is frozen at `--init`; a branch the script only guessed doesn't count. This works from a git worktree;
+- the base is a **production branch** (`main`, `master`, `prod`, `production`) while a mission is active, unless that is the mission's own integration branch. Promotion to production waits until every phase is closed and the mission is cleared.
+
+A PR with no checks counts as green. If `gh` is missing, not signed in, times out or returns something
+unreadable, the merge is allowed with a one-line note. A PR that is already merged or closed is left to
+`gh`. The gate follows `cd`, `bash -c` and `-R`.
+
+The gate doesn't wait for the phase audit. In a mission the audit is the review, and it runs after the
+merge. See [Phases](/workflows/missions/#phases-rules-v2).
+
+## The ADO receipt gate in the app
+
+**0.11.0 (beta).** The app's **Settings** drawer has a **Gates** section with an **ADO receipt gate**
+checkbox: "Refuses to open a pull request (`gh pr create`, `glab mr create`, `az repos pr create`) on an
+ADO-numbered branch until the ado-write skill has posted its progress comment. Off by default." The
+status reads **armed**, **off by choice** or **not armed**.
+
+- Checking the box writes `~/.kiro/gates/ado-receipt-gate.enabled`.
+- Unchecking writes `ado-receipt-gate.disabled`. That is "off by choice", so `install.sh --arm-all`
+  won't arm it again.
+- Only a person can change it. An agent's request gets a 403.
+- It shows the global flag only. A project's own `.kiro/gates` flag isn't shown.
 
 ## Kinds
 
