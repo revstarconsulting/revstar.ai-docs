@@ -337,8 +337,8 @@ was skipped, not a tool bug. `mission-state.js --init` verifies:
 - **grill-me receipt** (feature missions) — a receipt keyed to the plan file's
   hash, so an ungrilled or since-edited plan is caught.
 - **bug-report artifact** (bug-fix missions) — a real bug report to work from.
-- **access preflight** (both kinds) — the active GitHub account can reach the repo
-  named by the git remote, **and the project has declared its external access** in the
+- **access preflight** (both kinds) — the GitHub account the project expects can reach the
+  repo named by the git remote (without a declared account, the active one is used), **and the project has declared its external access** in the
   `qa-contract.json` `access` block: one probe per external dependency (token, staging
   target, database, deploy, QA login, or a custom check), or
   `"noExternalAccess": true` when there are none. Catches the "wrong `gh` account",
@@ -377,7 +377,8 @@ stays visible.**
 mission ends PARTIAL, doing only the parts it can. Two kinds of finding are **not
 waveable**: `--ack-skipped` and `--force` cannot clear them.
 
-- **A wrong finding.** The wrong `gh` identity, or a "staging" target that is actually
+- **A wrong finding.** The expected GitHub account is not signed in to `gh`, a session
+  is already bound to a different GitHub account, or a "staging" target is actually
   production. A write would succeed but land in the wrong place.
 - **An undeclared contract.** From 0.9.0 a `qa-contract.json` that declares no
   external access is refused, and so is a project with no `qa-contract.json` at all.
@@ -399,6 +400,26 @@ drops work that could be done`. The criterion stays `GAP` and can never be MET e
 the mission still ends PARTIAL; the probe result only makes a needless descoping visible.
 </Aside>
 
+**Which GitHub account.** If the contract names one (`"access": { "expectedGhUser":
+"<account>" }`), that account only has to be **signed in to `gh`** (`gh auth status` lists it
+as logged in; on Windows with WSL this is the Windows `gh`). It does **not** have to be the
+active account, and you never have to run `gh auth switch`. Each session `kiroctl open` or
+`kiroctl env --exec` launches selects that account on its own, for that session only: it
+gets that account's token as `GH_TOKEN` and a git credential helper that uses it, so `gh`,
+`git push` and `git clone` act as the expected account. Your active `gh` account is never
+changed, and a terminal you open yourself is unaffected. The preflight checks the repo as
+the expected account too. An account that shows `Failed to log in` in `gh auth status` does
+not count as signed in. If the contract names no account, the active one is used and the
+check reports a blind spot, as before.
+
+<Aside type="note" title="0.11.6">
+New in 0.11.6. Before this, the expected account had to be the **active** `gh` account, so
+a person who uses two accounts had to switch the whole machine back and forth. Now it only
+has to be signed in, and the launched session picks it. If it is not signed in, the preflight
+says `expected GitHub account "<account>" is not signed in to gh -- run: gh auth login (it
+need not be the active account)`, and `kiroctl open` prints a one-line hint and still launches.
+</Aside>
+
 **What counts as declared.** Either of:
 
 - `"access": { "noExternalAccess": true }` — the explicit statement that this project
@@ -407,7 +428,7 @@ the mission still ends PARTIAL; the probe result only makes a needless descoping
   `qaLogin`, `custom`, or `backend.probe` for the database.
 
 An empty `access: {}`, or one with only `expectedGhUser`, is not a declaration: a GitHub
-identity is not an external dependency. `noExternalAccess: true` together with any probe
+account is not an external dependency. `noExternalAccess: true` together with any probe
 contradicts itself and is a contract error. The refusal prints the lines to add:
 
 ```json
