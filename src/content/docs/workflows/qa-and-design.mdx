@@ -471,7 +471,8 @@ auto-wait and retrying assertions, with no model call. Both suites have the same
   standard: least privilege, scoped to the suite's repo or pipeline, read by the pipeline at run time, and
   never committed. When a secret can't be set from here (the probe says no, or the system is GitLab,
   Bitbucket or Jenkins), the mission finishes everything else, opens the PR, and ends **BLOCKED** with the exact
-  list of names and where a person must add them.
+  list of names and where a person must add them. The block is a declared dependency (`--declare-dep`) whose check
+  fails while any secret is missing, so it clears itself once a person adds them.
 - **Mobile device runs.** Every scripted mobile run goes through `mobile-qa.js run`, which books the devices,
   records them in the billing ledger and always releases them. The budget is **mission-wide**: see
   [Scripted device runs](/workflows/mobile-qa/#scripted-device-runs). Tests the budget stopped are reported
