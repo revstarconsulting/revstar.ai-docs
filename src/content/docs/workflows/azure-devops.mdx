@@ -195,6 +195,11 @@ for exactly those writes.
   **Done state**, assigned to the **Done assignee** (the PM when that is blank). A comment
   uses the usual Summary / Changes / Testing format and names the PR, the merge commit
   and the staging evidence. Hours stay `0`.
+
+Before filing, a mission reads the project's required Bug fields and fills them: Description and Repro Steps always, and a
+required pick list (for example a custom "Reported From") gets the value that says the bug came from QA. If a required field
+has no value the mission can honestly choose, it files nothing and names the field in its findings. The item picker only
+offers open items: anything in a closed or removed state category is left out, whatever the project calls that state.
 - **Fix bugs with a document, and every QA mission:** the mission files one Bug per
   bug in the document, or per finding. A Bug is created unassigned, in the current sprint and the project's default
   area path. It is tagged `kiro-mission` and `kiro-mission:<mission-id>`.
