@@ -165,6 +165,69 @@ the ADO env and launch. `kiroctl open --dir <dir>` **without** `--run` is prefli
 only (it checks and prints, doesn't launch).
 </Aside>
 
+## Missions and ADO
+
+<Aside type="note" title="0.12.0">
+New in 0.12.0.
+</Aside>
+
+The fix-bug and QA missions you start from the app's **Start mission** drawer (see
+[Starting a mission from the app](/workflows/missions/#starting-a-mission-from-the-app))
+read and write ADO as part of the run.
+
+### Picking the items
+
+**Fix bugs** has an **ADO work item ids** field with a picker. The picker lists the
+current sprint's open items, Bugs first. **Show all types, not only Bugs** adds the rest.
+You can also type ids by hand, separated by commas. The app checks each typed id: it must
+exist and must not be Closed or Removed. If the sprint has nothing open, the picker says
+"No open items in the current sprint. Type ids below." The token stays on the server and
+never reaches the page.
+
+You can give ids, a bug document, or both. At least one is required.
+
+### What a mission writes back
+
+The confirm dialog lists every ADO write before you start. Starting is your consent
+for exactly those writes.
+
+- **Fix bugs, with ids:** the mission comments on each item and moves it to the client's
+  **Done state**, assigned to the **Done assignee** (the PM when that is blank). A comment
+  uses the usual Summary / Changes / Testing format and names the PR, the merge commit
+  and the staging evidence. Hours stay `0`.
+- **Fix bugs with a document, and every QA mission:** the mission files one Bug per
+  bug in the document, or per finding. A Bug is created unassigned, in the current sprint and the project's default
+  area path. It is tagged `kiro-mission` and `kiro-mission:<mission-id>`.
+- **No duplicates.** Before filing, the mission looks for an open Bug tagged
+  `kiro-mission` with the same fingerprint (the repo and the test case id, or the
+  document's bug title). On a match it adds a comment with the new evidence instead.
+- **An item moves only when its fix is live on staging.** The mission merges the PR,
+  waits for the staging deploy, runs the bug's reproduction against staging, and only then
+  moves the item. A fix that fails the staging check is not moved. An item the mission
+  could not reproduce gets a comment with the evidence and is not moved.
+- **Findings that need a decision are never moved or commented as fixed.** They stay in
+  their starting state. In a `fix` QA mission, only a fixed defect ever moves.
+
+### The Done state is required
+
+An unattended mission can't stop to ask which state means done. So when a client has an
+ADO org and project but **no Done state**, Start mission refuses **Fix bugs** and the
+three QA types, which file or move bugs. The check reads "Set the done state in the ADO card." Set it in the
+**Azure DevOps** card, or with `kiroctl client set-ado --done-state`.
+See [Set up ADO for a client](#set-up-ado-for-a-client-org-project-pat).
+
+### A client with no ADO
+
+Nothing touches ADO. The check passes, the confirm dialog says "No ADO set up for this
+client: bugs are recorded in the QA report only.", and the mission records its bugs in the
+bug document or findings file. The **Fix bugs** type then needs a bug document, because ids
+can't be fetched without ADO.
+
+### Finding a mission's work items
+
+Every Bug a mission files carries the tags `kiro-mission` and `kiro-mission:<mission-id>`.
+Search the board for either tag to see what one mission filed.
+
 ## Reading without writing
 
 For read-only lookups — current sprint, open work items, the epics/features
