@@ -264,6 +264,45 @@ devices from an earlier run still booked.
 
 Screenshots are git-ignored and pruned after 14 days.
 
+## Scripted device runs
+
+<Aside type="note" title="0.12.0">
+New in 0.12.0.
+</Aside>
+
+The agent drives devices by hand during QA. A **regression suite** is different: its Mobilewright tests are
+scripts, and a script has no agent to book and release devices. `mobile-qa.js run` does that for it. It is
+the only sanctioned way to run a scripted mobile test, because a script that books devices another way
+bypasses the budget.
+
+```sh
+node <pack>/bin/mobile-qa.js run --platform android --devices 2 --bundle com.acme.app -- npx mobilewright test
+```
+
+`run` books `--devices` devices on Mobile Next, records them in the billing ledger, starts the command
+after `--` with the devices handed over in the `MOBILENEXT_DEVICES` environment variable (a JSON array of
+`{serial, platform, sessionId, name}`), and then **always releases them**. That holds when the command fails,
+when the process gets a signal and when it crashes. The Mobile Next key is passed to the command in its
+environment and is never printed. `--bundle` defaults to the contract's one app for that platform.
+`--entry` and `--min-os` pick the device kind, the way the agent's own picks do. The command's exit code is
+the run's exit code.
+
+### The mission budget
+
+A scripted run counts against a **mission-wide** device-minute budget, summed over every session of the
+mission, with the 5-minute minimum per booking. The budget is the mission's `mobile-minutes`: the budget you
+approved when the mission was estimate-first, else the `mobile-minutes` on the launch form, else the client's
+full-run cap. Nothing raises it later.
+
+`run` refuses before it books anything, with exit code **3**, in two cases:
+
+| Output | What it means | What to do |
+| --- | --- | --- |
+| `BUDGET-EXHAUSTED used=<u> budget=<b>` | The next booking would pass the budget. The refusal is also recorded for the mission. | Nothing. The mission lists the mobile tests that didn't run as "written, not run on a device", records a `budget-exhausted:mobile` criterion, finishes the rest, and ends **PARTIAL**. |
+| `ESTIMATE-NOT-APPROVED` | The mission was started estimate-first and you haven't approved the estimate yet. | Approve it in the Missions drawer. See [Approving an estimate](/workflows/missions/#approving-an-estimate). It isn't a budget problem, so no `budget-exhausted` criterion is recorded. |
+
+Exit code 1 is any other refusal or failure, and 2 is a usage error.
+
 ## Limits
 
 - **Manual sign-off.** Farm devices have no controllable GPS, no pushed files,

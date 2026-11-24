@@ -70,12 +70,36 @@ Start the mission by typing a slash command in that chat:
 | Command | What it runs |
 | --- | --- |
 | `/build-plan [plan=<path>] [branch=<name>]` | Builds every phase of the plan. `plan` defaults to `plan.md`. |
-| `/fix-bugs doc=<path> [branch=<name>]` | Reproduces, fixes and QA-verifies every bug in the report. |
-| `/ci-qa-coverage [branch=<name>]` | Runs a full QA audit and catalogs the CI/CD test gaps. |
+| `/fix-bugs [doc=<path>] [ado=<ids>] [branch=<name>]` | Reproduces, fixes and QA-verifies every bug in the report, the ADO work items, or both. **0.12.0:** `ado=123,456` is new, and `doc=` is no longer required when ids are given. |
+| `/qa-mission variant=full\|fix\|regression [branch=<name>]` | **0.12.0.** Runs a full QA audit as a mission. `fix` also fixes the defects. `regression` also writes the scripted regression suite. See [QA missions](/workflows/qa-and-design/#qa-missions) for the other arguments. |
+| `/ci-qa-coverage [branch=<name>]` | **Deprecated.** An alias for `/qa-mission variant=regression`, removed in 0.13.0. |
 | `/mission` | **0.11.0.** Runs the `mission` skill: sets or tracks any multi-phase goal as the mission in this chat. Use it when no shortcut above fits. |
 
 You can also ask the `mission` skill: "set this as the mission". There is no `--max`.
-The app's **Shortcuts** drawer shows these lines, ready to paste into the chat.
+**0.12.0.** The app's **Start mission** drawer builds these lines for you and opens the chat. See
+[Starting a mission from the app](#starting-a-mission-from-the-app).
+
+### Mission kinds
+
+`mission-state.js --init` takes a `--kind`. The slash commands above choose it for you.
+
+| Kind | Started by | Needs |
+| --- | --- | --- |
+| `feature` | `/build-plan` | A grilled plan (`--plan`) and its receipt. |
+| `bugfix` | `/fix-bugs` | A bug document (`--bug`). |
+| `qa` | `/qa-mission` | **0.12.0.** Nothing but a `--variant`: `full`, `fix` or `regression`. |
+
+A `qa` mission has no plan and no bug document. The kind itself freezes the QA scope as `full`, so the
+mission text carries `QA scope: full (qa mission kind, variant <v>)`. It takes two more flags:
+`--estimate-first`, which makes the mission stop for your approval of its estimate
+(see [Approving an estimate](#approving-an-estimate)), and `--mobile-minutes <n>`, a device-minute budget
+for the whole mission. Both are refused on any other kind, as is `--variant`. The `qa` kind and the
+**full-run gate** are described under [QA missions](/workflows/qa-and-design/#qa-missions).
+
+`--mission-id <id>` makes a new mission use an id you already have, and `mission-state.js --mint-id`
+prints a fresh one without starting anything. `/fix-bugs ado=...` uses the pair: it mints the id first, so
+the bug document `qa-reports/fix-bugs-<mission-id>.md` and the ADO tags can carry it, then starts the
+mission with that id. An id is 8 to 128 letters, digits, `_` or `-`.
 
 ### The chat keeps itself going
 
@@ -132,24 +156,78 @@ chat or runner is dead. Run `kiroctl open --run` in that folder to continue it.
 A person can end a chat or a headless run from the app at any time. See
 [Stopping a mission](#stopping-a-mission).
 
-## Execute a plan from the app
+## Starting a mission from the app
 
-<Aside type="note" title="0.11.0">
-New in 0.11.0.
+<Aside type="note" title="0.12.0">
+New in 0.12.0. The **Start mission** drawer replaces the **Execute plan** drawer and the **Shortcuts**
+drawer. Before, **Execute plan** could launch only a plan build, and **Shortcuts** only showed lines to paste.
 </Aside>
 
-A project's page has an **Execute plan** button. It opens the **Execute a plan** drawer.
+A project's page has a **Start mission** button. It opens the **Start a mission** drawer, which offers
+five mission types. Each one opens a terminal with a v2 `dev` chat whose first message is the slash
+command the drawer shows.
 
-1. The drawer lists the project's plan files: `plan*.md` at the project root and
-   `.kiro/plans/*.md`. Each has a badge: **grilled**, **imported** or **not grilled**.
-   You can also type a path, or use **Browse**.
-2. Select a plan. The app checks that the grill receipt matches this exact file, then
-   runs the access probes from the project's `qa-contract.json`. It shows what to fix.
-3. Click **Execute plan autonomously**. The app opens a terminal with a v2 `dev` chat
-   whose first message is `/build-plan plan=<path>`.
+| Type | The line it starts |
+| --- | --- |
+| **Build a plan** | `/build-plan plan=<path>` |
+| **Fix bugs** | `/fix-bugs ado=<ids> doc=<path>` |
+| **QA full** | `/qa-mission variant=full` |
+| **QA full + fix** | `/qa-mission variant=fix` |
+| **Regression suite** | `/qa-mission variant=regression repo=<repo>` or `new-repo=<org>/<name>` |
 
-The drawer refuses while a mission is already running in the project. A plan path cannot
-contain spaces.
+Every type takes an optional **Branch**, one word. It defaults to `staging`, then the remote's default
+branch, then `main`.
+
+<Steps>
+
+1. **Pick a type.** The drawer opens on five cards. A type the installed pack can't run is greyed out and
+   says "Needs a newer pack. Run `kiroctl update`." The server refuses it too.
+2. **Fill in its form.** The fields are below.
+3. **Watch the check panel.** As you type, a panel runs the same checks the mission's own start does, and
+   shows each one as a pass or a fail with the fix. **Start mission** stays off until every check passes.
+4. **Click Start mission.** A confirm dialog shows the exact slash line and every outside write the mission
+   may make. Clicking confirm is your consent for those writes. The app then opens the terminal.
+
+</Steps>
+
+### What each form asks for
+
+- **Build a plan.** The form lists the project's plan files: `plan*.md` at the project root and
+  `.kiro/plans/*.md`. Each has a badge: **grilled**, **imported** or **not grilled**. You can also type a
+  path, or use **Browse**. The checks are the grill receipt matching this exact file, access OK, no mission
+  running, and a path with no spaces. **Import a pre-grilled plan** is part of this form
+  (see [Import a pre-grilled plan](#import-a-pre-grilled-plan)).
+- **Fix bugs.** Pick ADO work items from the sprint list, type ids, give a bug document, or both. At least
+  one is required. The ADO rules are on [Azure DevOps power](/workflows/azure-devops/#missions-and-ado).
+- **QA full** and **QA full + fix.** **Estimate first, then ask me** and a **Mobile device-minute budget**.
+- **Regression suite.** Pick **Existing repo** (one of the project's repos) or **New GitHub repo**
+  (`org/name`). Optionally **Wire into CI/CD**, then pick the **CI/CD system** if the project has more than one.
+  When CI is on, **Web suite runs** is required, and so is **Mobile suite runs** when mobile is included. The
+  choices are **Every PR/commit**, **Nightly** and **On demand only**. Nothing is preselected. **Include
+  mobile (Mobile Next)** needs a mobile app in the project and a Mobile Next key. **CI secrets** is a list of
+  `NAME:from` pairs, such as `QA_ADMIN_PASSWORD:qa.admin`. The drawer disables an option it can't offer and
+  says why, for example "No CI/CD found in this project's repos".
+
+The check panel also covers the staging URL, the QA contract, access, a running mission, the branch on
+origin and the ADO setup. A failed check names its fix, such as the QA card, the Azure DevOps card or
+`kiroctl update`. A project path with a space in it fails, because a slash command can't carry one.
+
+### Presets and Copy the line
+
+The drawer has a **Presets** menu for the selected type. **Save as preset…** stores the form under a name in
+the project's `.kiro/shortcuts.json`, which you can commit so a team shares it. Your saved variations from
+the old **Shortcuts** drawer are kept: each shows under the type it was based on. A variation saved from
+`ci-qa-coverage` shows under **Regression suite**, and one saved from `qa-and-fix` shows under **QA full + fix**.
+
+**Copy the line** copies the slash line for the current form, so you can paste it into a chat yourself.
+Starting from the drawer is a person's action. The app refuses an agent's token.
+
+### Relaunching
+
+A stopped or dead mission in the [Missions drawer](#from-the-app-the-missions-drawer) has a **Start mission**
+link. It reopens this drawer with the mission's type and settings filled in.
+
+The drawer refuses while a mission is already running (or paused) in the project.
 
 ## Import a pre-grilled plan
 
@@ -158,7 +236,7 @@ New in 0.11.0.
 </Aside>
 
 Someone else may have grilled the plan already, for example on their own machine. The
-**Execute a plan** drawer imports it:
+**Build a plan** form in the **Start mission** drawer imports it:
 
 1. Click **Import a pre-grilled plan** and pick the downloaded plan `.md`. **Browse**
    starts in Downloads.
@@ -186,7 +264,7 @@ node <pack>/bin/grill-receipt.js check <plan>      # prints grilled | imported |
 ## The base branch
 
 `--init --base-branch <branch>` records, per repo, the branch the mission's work merges
-into. `build-plan` and `fix-bugs` pass it. Scoped QA and the fan-out gate measure the
+into. `build-plan`, `fix-bugs` and `qa-mission` pass it. Scoped QA and the fan-out gate measure the
 mission's changes against it the way a pull request does, and `--init` prints a
 `base <repo>: …` line for each repo so a wrong branch shows up at minute one. Without
 the flag each repo uses the project's Target branch, then the repo contract, then the
@@ -331,13 +409,15 @@ Setting a mission runs a **preflight** that checks the approved process is in
 place before work starts — because the most common bad run is one where a step
 was skipped, not a tool bug. `mission-state.js --init` verifies:
 
-- **QA environment valid** (both feature and bug-fix missions) — a non-production
+- **QA environment valid** (every kind) — a non-production
   `qa-contract.json` whose probes pass and whose `baseUrl` is reachable, so QA can
   actually render and test.
 - **grill-me receipt** (feature missions) — a receipt keyed to the plan file's
   hash, so an ungrilled or since-edited plan is caught.
 - **bug-report artifact** (bug-fix missions) — a real bug report to work from.
-- **access preflight** (both kinds) — the GitHub account the project expects can reach the
+- **Nothing else for a QA mission.** **0.12.0.** A `qa` mission has no plan, no grill receipt and no bug
+  document. Its preflight checks the QA environment and the access block below.
+- **access preflight** (every kind) — the GitHub account the project expects can reach the
   repo named by the git remote (without a declared account, the active one is used), **and the project has declared its external access** in the
   `qa-contract.json` `access` block: one probe per external dependency (token, staging
   target, database, deploy, QA login, or a custom check), or
@@ -633,6 +713,21 @@ doesn't hold, names a file that doesn't exist, or still says `-` or `TBD` refuse
 names the row. The build fills each location in as it goes. A plan with no such section has nothing
 to check, and `--clear --failed` is not held to it.
 
+**Recording the locations.** **0.12.0.** The plan is yours. An edit to it changes its hash, and `--clear`
+then refuses it as changed, so the build never edits the plan to fill in a location. It records each one
+in the acceptance ledger instead:
+
+```sh
+node <pack>/bin/mission-state.js --policy-set --name "<row name, exactly as in the table>" --at <path:line>
+node <pack>/bin/mission-state.js --policy-show      # read only
+```
+
+`--policy-set` refuses a name that isn't in the table (it lists the names), a plan that has changed, and
+a location whose 15 lines don't hold the row's value. A location the plan itself gives is used as written.
+`--policy-show` prints each row, whether its location comes from the plan, the ledger or nowhere, and whether
+the value is there now. A row with a location from neither source refuses the clear. A table cell may hold an
+escaped pipe (`a \| b`) and it stays one cell.
+
 ### Phases (rules v2)
 
 <Aside type="note" title="0.11.0">
@@ -729,13 +824,24 @@ gate is armed, and a refused clear exits 1, keeps the mission and sends nothing:
   `--bug`: decompose the plan with `--accept-add` first. **0.11.0.** A ledger that holds
   *only* `access-descoped:*` / `skipped:*` criteria counts as having none.
 
-Two things do not block a clear. The exit is then **PARTIAL**, not COMPLETE:
+These do not block a clear. The exit is then **PARTIAL**, not COMPLETE:
 
 - A criterion whose id starts `access-descoped:` (a dependency the plan descoped; see
   [Access: you must declare it](#access-you-must-declare-it)) or `skipped:`. They can never be
   MET, so they don't hold the clear back when they are the only unmet ones. The honest-exit
   record and its console line name each one and who decided it: the plan's descoping text
   for `access-descoped:`, the criterion's `ackedBy` for `skipped:` (`unknown` if absent).
+- **0.12.0.** A criterion whose id starts `needs-decision:` or `budget-exhausted:`. They exist only on a
+  [QA mission](/workflows/qa-and-design/#qa-missions), and they can never be MET either.
+  - `needs-decision:<finding-id>` is a finding of a `fix` mission that is a behaviour, copy or product
+    call, or missing access, not a defect. It is added with a triage reason of at least 15 characters and
+    a cite into the findings file. The record lists each one with its triage. The completion verifier
+    re-reads the triage against the evidence and fails the audit when one is plainly a defect. It can't be
+    marked MET or removed. To turn one into a defect, reclassify it, then fix it:
+    `--accept-rm --id needs-decision:<id> --reclassify-as <new-id> --reason "<why, 15+ characters>"`.
+  - `budget-exhausted:mobile` is on a `regression` mission whose scripted device run stopped on
+    `BUDGET-EXHAUSTED`. It lists the mobile tests that were written but not run on a device. The script
+    checks the record `mobile-qa.js` wrote when it refused. The budget is never raised.
 - An **advisory** mission (started without `--kind`, `--plan` or `--bug`, or begun before
   those existed) that has no ledger at all. It may clear from `audit`; the record says
   `no acceptance ledger`.
@@ -750,8 +856,8 @@ node <pack>/bin/mission-state.js --accept-rm --id <id> --reason "deferred: needs
 The criterion moves to `removed[]` in the ledger with its reason and the time.
 `--accept-show` prints a **removed** section, and the honest-exit record and its console
 line list every removed id with its reason, so a deferred item stays visible after the
-clear. A removal without a reason is refused, and an `access-descoped:` criterion can't be
-removed at all.
+clear. A removal without a reason is refused. An `access-descoped:` criterion can't be
+removed at all, and neither can a `needs-decision:` one, except by `--reclassify-as`.
 
 **Ending a mission that isn't finished.** `node <pack>/bin/mission-state.js --clear --failed "<reason>"`
 records the exit as **FAILED** with that reason, and needs no audit or ledger. The reason
@@ -760,6 +866,11 @@ session on `dev`, `coder` or `scout` unless `KIROCTL_PERSON_ACTION=1` is set, wh
 **End** in the app and `kiroctl missions end` set themselves. A plain terminal, where no
 agent can be found, is allowed. The variable stops an agent failing its own mission by
 reflex; it doesn't stop one that sets it on purpose.
+
+**Declining an estimate.** **0.12.0.** `--clear --estimate-declined` ends a QA mission that is waiting for
+its estimate approval. The exit is **PARTIAL** and the test registry is kept. It is what **End** does in
+[Approving an estimate](#approving-an-estimate). An agent can't run it, and it can't be combined with
+`--failed`.
 
 **What Mission Control receives.** **0.11.0.** `--clear --failed` sends a `mission_failed` event whose
 reason is one of `abandoned`, `error`, `blocked` or `timeout`. If the text you pass is exactly one of those
@@ -1006,6 +1117,56 @@ The drawer refreshes every 4 seconds while open. It shows loading, empty ("No mi
 this machine") and error states (with the reason and a **Retry** button), and marks a
 mission **Paused** or **Not indexed**.
 
+**0.12.0.** A mission that stopped or died shows a **Start mission** link on its card. It opens the
+[Start mission drawer](#starting-a-mission-from-the-app) with the mission's type and settings (the plan,
+the ADO ids or document, the variant and the options) already filled in. It is not shown while the
+mission waits for an estimate approval.
+
+### Approving an estimate
+
+<Aside type="note" title="0.12.0">
+New in 0.12.0.
+</Aside>
+
+A QA mission started with **Estimate first, then ask me** (`estimate-first=yes`) does the audit's
+planning, then stops before it runs any test case. It records an estimate and parks in the state
+`human-blocked-confirmed`. Spending money is a one-way door, so the approval is yours to give.
+
+The mission's card in the Missions drawer shows a **Waiting for your approval** pill and the estimate:
+
+- **Test cases**: the size of the test registry.
+- **Device minutes**: mobile cases × minutes per case × devices. The source is named: the billing
+  ledger once a run exists, otherwise the 5-minute booking floor.
+- **Kiro credits**: the registry size times a per-case rate from the estimation calibration log. With
+  no measured rows, the figure is labelled "rough: no measured calibration yet".
+
+Below it is a **Device-minute budget** field, filled with the estimate. Change it if the estimate is too
+high or too low. It must be a whole number above 0.
+
+| Control | What it does |
+| --- | --- |
+| **Approve and continue** | Records your approval and the budget, then opens a terminal with the mission's chat, the way **Resume mission** does. The chat applies the approval and carries on. The budget becomes the mission's device-minute limit. |
+| **End** | Asks first, then declines. The mission ends **PARTIAL** and its test registry is kept. |
+
+If the terminal can't open, the card says the approval was recorded and tells you to use
+**Resume mission**.
+
+The same answers from a terminal:
+
+```sh
+kiroctl missions approve <id> --budget <device-minutes>
+kiroctl missions decline <id> [--yes]
+```
+
+Only a person can answer. The approval is a file, `.kiro-mission[.<sid>].approval.json`, that records the
+budget, who approved and when. `mission-state-protect` refuses an agent that writes it, runs `kiroctl missions
+approve` or `decline`, or ends the mission with `--clear --estimate-declined`. The app's route answers
+403 to an agent's token. See [What `mission-state-protect` refuses](/capabilities/gates/#what-mission-state-protect-refuses-even-when-unarmed).
+
+An approval counts only for its own mission, and only when it is newer than the estimate. An agent
+can't raise the budget later: the device runner refuses with `BUDGET-EXHAUSTED` once the budget is
+used. See [Scripted device runs](/workflows/mobile-qa/#scripted-device-runs).
+
 ### From a terminal: `kiroctl missions`
 
 The same controls work when the app isn't running. This is how you lift a stop-all left
@@ -1016,12 +1177,15 @@ kiroctl missions list                 # missions on this machine, and whether st
 kiroctl missions pause <id>
 kiroctl missions resume <id>
 kiroctl missions end <id>
+kiroctl missions approve <id> --budget <device-minutes>   # 0.12.0: answer a QA mission's estimate
+kiroctl missions decline <id>                             # 0.12.0
 kiroctl missions stop-all
 kiroctl missions resume-all
 ```
 
 Add `--yes` to skip the confirmation and `--json` for machine output. Agents are refused
-every one of these except `list`.
+every one of these except `list`. For `approve` and `decline`, see
+[Approving an estimate](#approving-an-estimate).
 
 ### What a paused agent sees
 
@@ -1170,12 +1334,29 @@ Type each line in a v2 `dev` chat, or pass it as `kiroctl open --run --prompt "<
    /fix-bugs doc=<path to the bug report> branch=staging
    ```
 
-3. **Find the CI/CD test gaps.** Explores the repos, runs a full QA audit and writes
-   the regression-candidate catalog:
+   **0.12.0.** Or give ADO work items instead of a document, or both:
 
    ```text
-   /ci-qa-coverage branch=staging
+   /fix-bugs ado=123,456 branch=staging
    ```
+
+3. **Run a full QA audit.** **0.12.0.** As an enforced mission, with a report and a coverage receipt:
+
+   ```text
+   /qa-mission variant=full branch=staging
+   ```
+
+   Use `variant=fix` to fix the defects it finds too.
+
+4. **Build the regression suite.** **0.12.0.** Runs the full QA audit, then writes scripted tests for
+   the cases no test covers yet. Name the repo that gets them:
+
+   ```text
+   /qa-mission variant=regression repo=<repo in this project> branch=staging
+   ```
+
+   `/ci-qa-coverage` still works for one more release as an alias for the regression variant. It is
+   removed in 0.13.0.
 
 </Steps>
 

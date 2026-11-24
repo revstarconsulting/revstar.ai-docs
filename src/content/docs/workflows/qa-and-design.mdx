@@ -18,6 +18,7 @@ Say the trigger phrase and the `qa` skill runs the matching scope:
 Everything else is scoped too: automatic runs after a change, the end of every mission
 phase, and the run before a mission clears. Nothing switches to full on its own.
 
+**0.12.0.** Starting a [QA mission](#qa-missions) is also an explicit ask for full QA.
 ### Full QA from the plan
 
 The other way to get a full run is to agree on it while planning. `grill-me` asks once per
@@ -381,6 +382,112 @@ be read as complete. And because Kiro's stop
 hook can't hard-block, **`ci/qa-gate.sh`** gives the same teeth a second home: it
 recomputes the receipt and exits non-zero on `COVERAGE-FAIL`, so a CI job or a git
 pre-push hook stops a change that would ship with orphaned cases.
+
+## QA missions
+
+<Aside type="note" title="0.12.0">
+New in 0.12.0.
+</Aside>
+
+A **QA mission** runs a full QA audit as an enforced, pre-approved mission, with a ledger and a clear that
+can't be skipped. Start one from the app's **Start mission** drawer (**QA full**, **QA full + fix** or
+**Regression suite**), or type `/qa-mission variant=full|fix|regression` in a v2 `dev` chat. The mission
+kind is `qa`. It needs no plan, no grill receipt and no bug document, and its QA scope is `full` by the kind itself.
+
+All three variants share one first step, the **spine**: the `qa` skill in full mode, exactly as written
+there. It is the coverage audit, the rebuild of the complete test registry, every case run, and the coverage
+receipt. `qa-mission` never restates it, so full QA has one definition.
+
+| Variant | After the spine |
+| --- | --- |
+| `full` | Nothing. The report and the coverage receipt are the deliverable. |
+| `fix` | Triage every finding. Fix the defects, land the fixes through a PR into the base branch, wait for the staging deploy, re-test on staging. Findings that need a decision are listed, not changed. |
+| `regression` | Turn the registry into scripted tests, in a repo, optionally wired into CI/CD. |
+
+Every variant files the findings as ADO Bugs when the client has ADO, and records them in a findings file,
+`qa-test-cases/qa-mission-<mission-id>-findings.md`, either way. See
+[Azure DevOps power](/workflows/azure-devops/#missions-and-ado).
+
+### The `fix` variant
+
+The mission triages each finding as a **defect** (broken against the app's own evident intent: an error, a
+dead link, a crash, a contrast failure, a dead end) or **needs a decision** (a behaviour, copy or product call,
+or missing access). It fixes defects the way `fix-bugs` does: reproduce first, fix at the owning layer,
+re-verify, and sweep for the same flaw elsewhere. A needs-decision finding is never touched. It becomes a
+`needs-decision:<finding-id>` criterion with its triage, and the mission ends **PARTIAL** and lists each one.
+The completion verifier re-reads every triage and fails the audit on one that is plainly a defect, so this
+isn't a way to leave a bug unfixed. See [Clearing a mission](/workflows/missions/#clearing-a-mission).
+
+### Estimate first
+
+With **Estimate first, then ask me** (`estimate-first=yes`), the mission pauses after its planning and before
+it runs any case. It reports the number of cases, the device minutes and the Kiro credits, each with its
+source, and waits for you to approve in the app. See
+[Approving an estimate](/workflows/missions/#approving-an-estimate).
+
+When the mission clears, it adds one estimate-versus-actual row to the estimation calibration log by itself.
+The actual Kiro credits read **UNMEASURED** when the chat exposes no metering, which is the case in an
+interactive chat. Nothing invents a number.
+
+### The full-run gate
+
+A mission can't clear a full run unless the coverage receipt is newer than the last code change. For `full`
+that rule is unchanged. `fix` and `regression` change code after the spine finishes, so for those two
+variants the spine's own coverage receipt satisfies the gate. Each closes with its own check in its place:
+`fix` with a scoped QA over the fix diff, plus a passing re-test per fixed finding. `regression` with the
+suite itself running green against staging.
+
+### The regression suite
+
+The `regression` variant writes **programmatic tests, not model-driven ones**. Web tests use Playwright Test.
+Mobile tests use **Mobilewright** on Mobile Next cloud devices. It is "Playwright for mobile": real locators,
+auto-wait and retrying assertions, with no model call. Both suites have the same API shape.
+
+- **Gap-only.** The mission maps every registry case to any test that already covers it, across every repo of
+  the project, and writes new tests only for the cases nothing covers. The map is the catalog
+  `qa-reports/ci-regression-candidates.md`: one row per case, with its status, a pointer to its test and
+  why it wasn't covered. This is what `/ci-qa-coverage` used to produce on its own.
+- **Where the tests go.** Into `repo=<name>`, a repo of the project, in its existing e2e location if it has
+  one, else `tests/regression/web` and `tests/regression/mobile`. Or into `new-repo=<org>/<name>`: a new
+  private GitHub repo, with no collaborators added, mapped into the project. Either way the suite lands
+  through a PR, never a direct push.
+- **Credentials.** Tests read them from the environment at run time (`QA_<ACCOUNT>_PASSWORD`, `QA_BASE_URL`).
+  A value is never written into a test, a config or a log.
+- **Known bugs.** A test for something the audit found broken is written correctly and marked expected-to-fail
+  (`test.fail()`), with its ADO Bug id in the title. A marked test that starts passing is flagged so the mark
+  can go. The mission never weakens an assertion to make it pass, never skips the test, and never fixes the
+  bug. That is the `fix` variant.
+- **Cannot be automated.** A case is listed that way only for one of five reasons: `captcha`,
+  `external-inbox`, `third-party-hosted`, `visual-judgement` or `prod-only-data`. Each entry also says what
+  would make it automatable. The verifier rejects any other reason. "It is hard" isn't one.
+- **CI/CD, only when asked (`ci=yes`).** The mission uses the CI system the project already has, found by
+  `kiroctl ci-detect`. It never adds a new one. When there is more than one, the line must name it with
+  `ci-system=`. It wires exactly what the line says: `web-runs` and `mobile-runs` are each `pr` (every PR or
+  commit), `nightly` or `manual`, with no default. A mobile CI job has no ledger, so its pipeline timeout is the
+  client's full-run device-minute cap, and a final step always releases its devices.
+- **CI secrets, value-blind.** The `secrets=NAME:from,...` argument names each CI secret and the local source
+  it comes from. The agent never sees a value. `kiroctl ci-secret` copies each one from the local secret store
+  into the CI secret store inside kiroctl, and its output shows names only. The names follow the RevStar secrets
+  standard: least privilege, scoped to the suite's repo or pipeline, read by the pipeline at run time, and
+  never committed. When a secret can't be set from here (the probe says no, or the system is GitLab,
+  Bitbucket or Jenkins), the mission finishes everything else, opens the PR, and ends **BLOCKED** with the exact
+  list of names and where a person must add them.
+- **Mobile device runs.** Every scripted mobile run goes through `mobile-qa.js run`, which books the devices,
+  records them in the billing ledger and always releases them. The budget is **mission-wide**: see
+  [Scripted device runs](/workflows/mobile-qa/#scripted-device-runs). Tests the budget stopped are reported
+  "written, not run on a device", and the mission ends **PARTIAL** with a `budget-exhausted:mobile` criterion.
+
+The suite is done when every uncovered case has a scripted test or an allowed reason, every covered case points
+to its test, the suite is green against staging locally (marked known-bug tests failing as expected counts as
+green), the CI run is green when CI is on, and the suite is in a PR.
+
+### Two files the report gate does not judge
+
+The `qa-report-gate` treats every file under `qa-reports/` as a QA report. Two exact names are exempt,
+because each is an input or a catalog and carries no verdicts: `qa-reports/fix-bugs-<mission-id>.md`
+(the bug document `/fix-bugs ado=` writes) and `qa-reports/ci-regression-candidates.md`. Nothing else is exempt.
+A QA mission's findings file lives in `qa-test-cases/` for that reason. See
+[Gates](/capabilities/gates/).
 
 ## Definition of done
 
