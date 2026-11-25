@@ -217,6 +217,9 @@ Its stop-control half never did. With or without the flag, an agent can't:
   past the preflight), or set `KIROCTL_PERSON_ACTION`. This holds however the command is wrapped (`setsid`,
   `script -c`, `env -i`, a nested shell), because a detached process otherwise looks like a person at a terminal.
   Run these yourself in your own terminal, or use End in the app;
+- **0.12.1.** apply a plan amendment (`mission-state.js --apply-amendment`, the app's **Approve amendment**) or
+  write an `amended` grill receipt (`grill-receipt.js amend`, alongside `write` and `import`). The chat may
+  only `--propose-amendment`. The app's accept and amend routes answer 403 to an agent's token;
 - **0.11.0.** start or advance a mission from any agent other than `dev`, `coder` or `scout`. `mission-state.js --init`, `--set`, `--yield`, `--touch`, the clear command, `--accept-add`, `--accept-set`, `--accept-rm` and `--resume`, `mission-broker.js claim`, `release` and `add-pr`, and `mission-acp-driver.js` are refused. Read-only status still works: `mission-state.js`, `--json`, `--accept-show`, `--accept-json` and `--hours`. `mission-state.js` checks the agent itself, from the chat process. The [global hook](#the-global-hook) refuses the shell commands in a v3 session on a foreign agent.
 
 **The allow-list.** Under the kiro home, a destructive glob, variable or `find` is
