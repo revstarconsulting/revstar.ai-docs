@@ -341,6 +341,41 @@ QA of the RevStar.ai app itself: an agent can't read the app's token log. Use
 `kiroctl gui --qa-url`, which prints a one-time URL for the QA browser from the running
 app. It is refused while all agents are stopped or the mission is paused.
 
+## Delivery capture
+
+<Aside type="note" title="0.12.2">
+New in 0.12.2. Before, QA wrote a verdict and a screenshot path and nothing a person could follow later.
+</Aside>
+
+In a mission that produces [delivery docs](/workflows/missions/#delivery-docs), QA also records what it saw
+in a form the UAT guide can use. Right after it records a changed target's `pass` or `fail`, the agent runs:
+
+```sh
+node <pack>/bin/qa-scoped-record.js capture --run <id> --target <id> --data <capture.json>
+```
+
+The command writes `delivery/capture/<mission-id>/<feature>.json`. It does nothing outside a delivery-docs
+mission: it prints `capture: off (...) -- nothing written` and exits 0, so **ad-hoc QA is unchanged**. It
+also does nothing when `mission-docs.disabled` applies (see [Delivery docs](/workflows/missions/#delivery-docs)).
+
+Two parts come from QA's own verdict and cannot be set by hand: the result (`runId`, `target`, `works`,
+`intent`, `method`) and the screenshots. The capture refuses to write unless the verdict was recorded with at
+least one screenshot that exists on disk as its `--evidence`. The agent writes the rest in plain English:
+
+| Field | What it holds |
+| --- | --- |
+| `featureName` | The feature as a person would name it. |
+| `intentStatement` | What the user can do now, from the item's intent statement. |
+| `navPath` | The labels a user clicks to get there, in order. |
+| `steps` | Each step as an action and its expected result. At least one is a negative step, such as a wrong role or missing data. |
+| `successCriteria` | How the tester knows it worked. |
+| `roles` | The roles the agent tested as. |
+| `switches` | A flag or setting that changes the behaviour: its name, where it lives and its state. |
+
+**Never a password.** The agent never puts a password, token or secret in the file. The command refuses a
+`--data` file that has a password-like key in it, and the UAT guide shows test-account usernames only. A connected target whose intent is "behaves as
+before" needs no capture.
+
 ## What a QA report must contain
 
 On top of the two verdicts, the `qa-report-gate` now refuses a report when:

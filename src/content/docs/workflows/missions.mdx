@@ -216,6 +216,9 @@ run on &lt;date&gt;". A record that can't be read is ignored. Nothing moves or d
   mobile (Mobile Next)** needs a mobile app in the project and a Mobile Next key. **CI secrets** is a list of
   `NAME:from` pairs, such as `QA_ADMIN_PASSWORD:qa.admin`. The drawer disables an option it can't offer and
   says why, for example "No CI/CD found in this project's repos".
+- **0.12.2.** **Produce UAT guide + blockers.** A box on **Fix bugs**, **QA full**, **QA full + fix** and
+  **Regression suite**, unticked by default. Ticking it adds `delivery-docs=yes` to the line. **Build a plan**
+  has no box, because a feature mission always produces them. See [Delivery docs](#delivery-docs).
 
 The check panel also covers the staging URL, the QA contract, access, a running mission, the branch on
 origin and the ADO setup. A failed check names its fix, such as the QA card, the Azure DevOps card or
@@ -864,6 +867,9 @@ gate is armed, and a refused clear exits 1, keeps the mission and sends nothing:
 - **The completion verifier must have passed** for this ledger and this code
   (see [The completion verifier](#the-completion-verifier)). A mission with nothing for it to read
   is not held to it.
+- **0.12.2.** **The delivery docs must exist**, when the mission has them on. The UAT guide (when QA captured
+  something testable) and the blockers page (when something was deferred) must be written, and every deferral
+  needs its `resolutionSteps`. Checked last, after the QA fan-out gate. See [Delivery docs](#delivery-docs).
 - **A mission with no criteria is refused** when it was started with `--kind`, `--plan` or
   `--bug`: decompose the plan with `--accept-add` first. **0.11.0.** A ledger that holds
   *only* `access-descoped:*` / `skipped:*` criteria counts as having none.
@@ -1081,6 +1087,106 @@ the mission when the mission clears. The honest-exit record keeps
 The wrap also captures **estimate vs actual** — autonomous time, units, and human
 supervision/verification minutes — and appends one row to
 `memory/estimation-calibration.md` for [self-calibration](/workflows/pipeline/#self-calibration).
+
+## Delivery docs
+
+<Aside type="note" title="0.12.2">
+New in 0.12.2. Before, a finished mission left only its closing summary. Now it can also leave a UAT guide
+and a blockers page, with narrated videos when the machine can make them.
+</Aside>
+
+A mission can end by writing two documents for the people who take over from it:
+
+- A **UAT guide**: one HTML file that lets any stakeholder test what was built, step by step. It comes from
+  the features QA tested during the mission.
+- A **blockers page**: one HTML page of everything a person outside the mission must act on, each with an
+  ordered list of steps to clear it.
+
+**Which missions write them.** A **feature** mission (`/build-plan`) always does. Every other kind
+(**Fix bugs**, **QA full**, **QA full + fix** and **Regression suite**)
+writes them only when you ask at launch. In the app's Start mission drawer that is the
+**Produce UAT guide + blockers** box, unticked by default. In a slash line it is `delivery-docs=yes`. The line
+passes `--init --delivery-docs` to `mission-state.js`. The choice is frozen when the mission starts and is
+never worked out from the kind again. `show` prints `delivery docs: on (frozen at --init)` or `off`. A mission
+that started before 0.12.2 reads as off. An advisory mission with no kind, plan or bug has no gate file to
+freeze the choice in, so it never writes them.
+
+**When a document is needed.** The mission only writes what it has something to put in:
+
+| Document | Written when |
+| --- | --- |
+| UAT guide | At least one QA capture has a `pass` or `fail` result. A mission whose QA tested nothing a person could test has no guide. |
+| Blockers page | At least one deferral that someone outside the mission must act on: a `needs-decision:`, `access-descoped:` or `budget-exhausted:` criterion, or a declared dependency the mission is blocked on. A `skipped:` criterion is a person's own waiver and is not listed. |
+
+**How steps get written.** When the mission defers something, it writes the **`resolutionSteps`** in the same
+moment: an ordered list of plain-English steps, each a complete instruction of three or more words that
+someone outside the mission can follow. The field is added with `--resolution-steps '<json array>'`:
+
+- when the criterion is created, with `--accept-add`;
+- afterwards, with `--accept-set --id <id> --resolution-steps ...`. This is the only change allowed on a
+  by-design criterion, so it also covers an `access-descoped:` item written at `--init`;
+- on a declared dependency, with `--set human-blocked-confirmed --blocker <id> --resolution-steps ...`.
+
+Every time a deferral is added or changed the mission regenerates the blockers page, so it never lags the
+ledger. `mission-state.js --delivery-blockers [--json]` prints the data the page is built from and changes
+nothing. At completion, before the final audit, the mission writes the UAT guide and the final blockers page.
+The existing deferral checks ignore `resolutionSteps`. The field is required only when delivery docs are on.
+
+**What `--clear` checks.** With delivery docs on, `mission-state.js --clear` refuses until:
+
+- the UAT guide exists and is newer than the newest capture, when there is a testable capture;
+- the blockers page exists and is newer than the newest deferral change, when there is a deferral;
+- every deferral has non-empty `resolutionSteps`. The refusal names each one that doesn't.
+
+The refusal says what is missing and gives the command to make it. The check runs after the
+[QA fan-out gate](/capabilities/gates/#the-qa-fan-out-gate) and, for a full QA mission, the full-run
+receipt. It only looks that the files exist. It does not read them again, and **videos are never required**.
+If the check itself fails to run, it **fails open**: the mission clears with a note, and the failure is logged.
+See [The delivery docs check](/capabilities/gates/#the-delivery-docs-check).
+
+**Turning it off.** Create `mission-docs.disabled` in `<kiro home>/gates/` (the whole machine) or
+`<project>/.kiro/gates/` (one project). Docs are on by default, so there is no `.enabled` file. This is a
+person's file, and it has to exist **before** the mission starts: one created mid-mission is ignored, and
+agents can't create it.
+
+**Where the files go.** In the project, under `delivery/`:
+
+```text
+delivery/
+  capture/<mission-id>/<feature>.json     what QA saw, one file per tested feature
+  uat-guide/<date>/uat-guide.html
+  uat-guide/<date>/videos/                the release demo, when it was made
+  uat-guide/runs/                         one record per run, never overwritten
+  blockers/<date>/blockers.html
+  blockers/<date>/videos/                 a short clip for a blocker you can see on screen
+  blockers/runs/
+```
+
+Each dated folder is self-contained, so it opens offline and can be zipped. Running the blockers page again on
+the same day replaces that day's page, and the run records stay. Release notes use the same layout under
+`release-notes/` but are manual (see the [`release-notes` skill](/capabilities/skills/)).
+
+`delivery/` is **not code**. QA's change detection ignores it, so writing a guide after the coverage receipt
+does not make the receipt stale. kiroctl's managed `.gitignore` block ignores it, so nothing is committed by
+default.
+
+An optional **`delivery-contract.json`** in the project root sets the details. Every field is optional, and a
+missing one is inferred from the project or left out. It never blocks a mission.
+
+| Field | What it sets |
+| --- | --- |
+| `outputDir` | The folder for the generated documents, inside the project. Default `delivery`. |
+| `voice` | The narration voice. Default `af_heart`. `am_onyx` is installed too, so it works offline. |
+| `blockerSlaHours` | Hours to clear a blocker. When set, the page shows a "Clear by" time and escalates late ones. When not set, that wording is left out. |
+| `commit` | `true` makes the mission commit the generated documents, videos included, on the mission branch. Default is no commit. |
+| `videoUrl` | A hosted `https:` video to use as it is, instead of a local file. |
+| `perFeatureVideos` | `true` keeps a clip on each feature in the UAT guide. By default the guide has one release demo. |
+
+The closing summary states the paths of the documents and one line of video counts, for example
+`videos: 4 rendered, 1 placeholder (voice INSTALLING)`. `--clear` prints both lines
+(`delivery docs: <paths>` or `none needed`, and `videos: none` when there were none), and the mission quotes them.
+A video that can't be made leaves a "not recorded yet" placeholder and never blocks the mission. See
+[Troubleshooting](/reference/troubleshooting/) for the causes.
 
 ## Completion honesty: blocked is not complete
 

@@ -1,6 +1,6 @@
 ---
 title: Skills
-description: The 29 on-demand playbooks RevStar.ai installs, grouped by purpose.
+description: The 33 on-demand playbooks RevStar.ai installs, grouped by purpose.
 ---
 
 A skill is a playbook that loads **on demand** — its metadata is available at
@@ -29,6 +29,10 @@ that fits, most often `dev`.
 | `status` | Client-facing status updates from vault state and recent work. |
 | `handoff` | Session context summary for handing work off to a sibling project/repo. |
 | `submit` | The pre-PR pipeline — secret scan, gates, review, then commit/push/PR. Commits in logical, reviewable units (never one giant commit) and fills the project's PR/MR template when it has one, instead of a freeform description. Never auto-merges outside a mission; **0.11.0.** in a mission the phase audit is the review. |
+| `release-notes` | **0.12.2.** Customer-facing release notes: one self-contained HTML page, in plain English, about what the customer can do now. **Manual only.** Run it after UAT acceptance with `/release-notes`; a mission never writes release notes on its own. Only `pass` captures from QA become features, and you supply the milestone, the numbers and the "why it matters" lines. It never invents a number. Output goes to `delivery/release-notes/<date>/`. See [Delivery docs](/workflows/missions/#delivery-docs). |
+| `uat-guide` | **0.12.2.** The UAT guide: a self-contained HTML hand-over that lets any stakeholder test a build end to end. Say "UAT guide" or run `/uat-guide`. A mission with [delivery docs](/workflows/missions/#delivery-docs) on writes it for you at the end. It is generated from the QA captures, with no fill-in step. Test accounts show as usernames only, never passwords. |
+| `blockers` | **0.12.2.** The blockers page: a one-page HTML report walked at standup so every blocker leaves with one ask, one owner and one date. Say "blockers report" or run `/blockers`. A mission with delivery docs on writes it at the end when something needs a person. Each blocker carries ordered `resolutionSteps` that say how to clear it. |
+| `delivery-video` | **0.12.2.** A short narrated video (mp4 plus captions) of a feature running on staging. It drafts the shot script, **stops for your approval of the script**, then records and renders it. Nothing is rendered until you approve, and a changed script needs a new approval. A mission renders its videos without stopping. A video that can't be made becomes a placeholder and never blocks anything. Run `/delivery-video` or say "make a video of this feature". The voice and browser need the [video toolchain](/start/install/#the-video-toolchain). |
 
 ## Autonomy, QA & design
 
@@ -66,4 +70,4 @@ kiroctl onboard --kind skill --name <name> --source <path>
 ```
 
 This is governance-gated — `kiroctl doctor --governance` checks that a
-registered skill is well-formed before it's trusted alongside the built-in 29.
+registered skill is well-formed before it's trusted alongside the built-in 33.

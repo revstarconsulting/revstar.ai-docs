@@ -315,6 +315,7 @@ which stays off in a plain install or `kiroctl update`.
 8. Records an install manifest so `kiroctl doctor`/`kiroctl update` know the layout.
 9. **0.11.0.** Turns kiro-cli Workflows off (`chat.enableWorkflows` is set to `false` in `~/.kiro/settings/cli.json`), because a `/goal` workflow skips the pack's hooks. `kiroctl update` does the same.
 10. **0.11.0.** Writes the global hook file `~/.kiro/hooks/revstar-workbench.json`. It runs `mission-pause`, `mission-state-protect` and `git-protect-gate` for any agent that isn't `dev`, `coder` or `scout`. See [Gates → The global hook](/capabilities/gates/#the-global-hook).
+11. **0.12.2.** Starts the [video toolchain](#the-video-toolchain) as a background job, unless `KIRO_NO_VIDEO_TOOLCHAIN=1` is set.
 
 ## 4. Verify
 
@@ -469,6 +470,56 @@ skills and MCP servers reload. (On Windows, run it inside WSL.)
 If you aren't signed in to Mission Control yet, the update ends by opening the
 RevStar.ai app on its sign-in banner (or, with no display or `KIRO_NO_GUI=1`, by
 printing the one step to take).
+
+## The video toolchain
+
+<Aside type="note" title="0.12.2">
+New in 0.12.2. Every install and every `kiroctl update` now starts the video toolchain in the background.
+</Aside>
+
+The [`delivery-video` skill](/capabilities/skills/) and the videos in a mission's
+[delivery docs](/workflows/missions/#delivery-docs) need three things on your machine: a voice, ffmpeg and a
+headless browser. The installer sets all three up on **Windows, macOS and Linux/WSL**, into
+`<kiro home>/delivery/`. It touches no system Python and needs no admin rights.
+
+| Part | What gets installed |
+| --- | --- |
+| Voice | `uv` (a pinned release, checked against its published sha256 before it runs), Python 3.12.10 that `uv` downloads for itself, and the Kokoro voice (PyTorch, CPU build) with the voices `af_heart` and `am_onyx`. |
+| ffmpeg | The `ffmpeg` already on your `PATH`. If there is none, the `imageio-ffmpeg` build pinned in the voice's lockfile. |
+| Browser | `playwright-core` 1.65.1 and its headless Chromium, in the shared `ms-playwright` cache (reused when it is already there). |
+
+**Size and time.** About **1.4 GB** in total, and the installer needs **3 GB free** before it starts. The first
+download is long, so the install runs as a **detached background job**: the installer prints one line and
+carries on, and the app's **Update** button does not wait for it.
+
+**It never fails your install.** Offline, a full disk, an unsupported machine or a broken step leaves a status
+that `kiroctl doctor` shows, and one line in `<kiro home>/delivery/install.log`. Videos then become
+placeholders. The toolchain is built in a temporary folder and swapped in only after the voice says a test
+sentence, so a half-finished download never replaces a working install. An update upgrades it in place only
+when the pack's pinned versions changed.
+
+**See it, run it, skip it.**
+
+```sh
+kiroctl video status       # the state, and the three doctor rows
+kiroctl video setup        # run the install now, in the foreground
+```
+
+`kiroctl doctor` has the same three rows: `video-voice`, `video-ffmpeg` and `video-browser`. See
+[Troubleshooting](/reference/troubleshooting/) for what each state means. To skip the install, set
+`KIRO_NO_VIDEO_TOOLCHAIN=1` (`$env:KIRO_NO_VIDEO_TOOLCHAIN=1` in PowerShell) before you run the installer or
+`kiroctl update`. You can run `kiroctl video setup` later.
+
+**Which machines.** The voice runs on Windows (x64 and arm64), Linux and WSL (x64 and arm64), and on a Mac
+with Apple Silicon running **macOS 14 or newer**. An Intel Mac, or macOS 13 or older, has no matching
+PyTorch build. The voice there reports **UNSUPPORTED** with the reason, and its videos are placeholders.
+Nothing else is installed in its place.
+
+<Aside type="caution" title="What has been tested">
+The install was verified on **WSL/Linux**. It is **UNVERIFIED on macOS and on native Windows**: no one has run
+the same install check there yet. If it goes wrong on either, `kiroctl doctor` and `install.log` say where, and
+videos fall back to placeholders. Nothing else in RevStar.ai depends on it.
+</Aside>
 
 ## Release channels — stable vs beta
 
