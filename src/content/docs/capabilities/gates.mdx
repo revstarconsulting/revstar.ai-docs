@@ -409,6 +409,34 @@ The 2-minute timeout and a git failure still fail open.
 the project's `.kiro/gates/`) **before** starting the mission. A flag created during a
 mission is ignored, and agents can't create it.
 
+## The delivery docs check
+
+<Aside type="note" title="0.12.2">
+New in 0.12.2.
+</Aside>
+
+Not a hook either: a step in `mission-state.js --clear`, after the fan-out gate and, for a full QA mission, the
+full-run receipt. It applies only to a mission whose delivery docs are on, a value frozen when the mission
+started (see [Delivery docs](/workflows/missions/#delivery-docs)). It reads that frozen value and never the
+mission's kind. A mission with no such value, such as one that began before 0.12.2, is not checked.
+
+It refuses the clear unless:
+
+- the UAT guide exists and is newer than the newest QA capture, when the mission has a capture with a `pass` or
+  `fail` result;
+- the blockers page exists and is newer than the newest deferral change, when the mission has a deferral someone
+  outside it must act on;
+- every such deferral has non-empty `resolutionSteps`.
+
+The refusal names each missing item and the command that makes it. It only looks that the files exist. It
+doesn't read them again, and **videos are never required**. If the check itself fails to run, it **fails open**:
+the mission clears with a `delivery docs gate: FAILED OPEN` note, and the failure is logged to
+`delivery-docs-failopen.jsonl`.
+
+**Off-switch (a person only):** create `mission-docs.disabled` in `~/.kiro/gates/` (or the project's
+`.kiro/gates/`) **before** starting the mission. A flag created during a mission is ignored, and agents can't
+create it. The docs are on by default, so there is no `.enabled` file.
+
 ## Verifying gates
 
 Run the full self-test suite, which asserts every gate in both directions
