@@ -190,6 +190,15 @@ branch, then `main`.
 
 </Steps>
 
+**0.12.1. Finished plans.** The **Build a plan** list reads the project's mission exit records
+(`.kiro-exit-*.json`) and matches each to a plan by its path **and** its hash. A plan whose latest mission
+ended **COMPLETE**, for the text it has now, leaves the list for a collapsed **Finished** section that shows
+the outcome and date (for example `COMPLETE 103/103 · Nov 24`); it can't be picked for launch from there.
+**Run again** moves it back into the list, selected, for the normal check and confirm. A plan whose latest
+run was **PARTIAL** or **FAILED** stays in the list with that outcome as a pill. A plan changed since its
+COMPLETE run (amended, re-grilled or edited) is new work: it stays in the list and says "Changed since its
+run on &lt;date&gt;". A record that can't be read is ignored. Nothing moves or deletes plan files.
+
 ### What each form asks for
 
 - **Build a plan.** The form lists the project's plan files: `plan*.md` at the project root and
@@ -258,8 +267,13 @@ The same import from a terminal:
 node <pack>/bin/grill-receipt.js import --from <file> --root <project> \
   --ado-id <N> --ado-title <title> --confirmed-by <name> \
   [--narrow a,b] [--defer name="reason"] [--replace]
-node <pack>/bin/grill-receipt.js check <plan>      # prints grilled | imported | legacy
+node <pack>/bin/grill-receipt.js check <plan>      # prints grilled | imported | amended | legacy
 ```
+
+**0.12.1.** The import runs the same [contradiction check](#the-contradiction-check) as `grill-receipt.js
+write`: a plan with sentences that cannot both be true is refused and nothing is copied. A person clears
+a false alarm with `--ack-contradiction <n> --reason "<why>"` on the terminal import. When the check could
+not run, the app's toast says so in red ("Contradiction check not run (…)").
 
 ## The base branch
 
@@ -629,6 +643,35 @@ Two checks are **advisory only** — they warn and proceed:
   applies them and records the evidence. The plan file is never edited (its grill
   receipt stays valid).
 
+### The contradiction check
+
+<Aside type="note" title="0.12.1">
+New in 0.12.1.
+</Aside>
+
+A plan that keeps an earlier sentence beside a later answer that narrowed it says two things, and the
+completion verifier holds the build to whichever one a criterion quotes. `grill-me` now **replaces** the
+earlier sentence (the old wording survives only as a "superseded by …" note in the decision log) and
+runs a consistency pass before the receipt. `grill-receipt.js write` and `import` then check mechanically:
+
+- One fresh-context model run, isolated like the completion verifier (the `scout` agent, no tools, an
+  empty folder, only the plan text), lists pairs of plan sentences that cannot both be true. A quoted
+  sentence that is not in the plan is discarded.
+- **Any pair refuses the receipt.** The pairs are printed with their line numbers and the reason. Fix the
+  plan so one sentence stands, then write again.
+- **A false alarm is your call**, from your own terminal:
+
+  ```sh
+  node <pack>/bin/grill-receipt.js write <plan> --ack-contradiction 1,2 --reason "<why both can be true, 15+ characters>"
+  ```
+
+  It is refused from `dev`, `coder` or `scout` and without a terminal. The receipt records the pairs and
+  each acknowledgement (who, when, why).
+- **If the model can't be reached or times out** (90 s), the receipt is still written, with
+  `contradictionCheck: "not run (<reason>)"`, and the line is printed, so an outage never blocks grilling
+  and never passes silently. Every receipt records the result in `contradictionCheck` (`passed (…)`,
+  `acknowledged (…)` or `not run (…)`).
+
 ## The acceptance ledger
 
 Every mission carries an **acceptance ledger** — one line per requirement,
@@ -663,7 +706,8 @@ file changes afterwards and no grill receipt covers its new text, `--blocker`, `
 dependency whose check always fails and park the mission on it). While a mission is active, the
 agent also can't write a grill receipt (`grill-receipt.js write` / `import`, or a file under
 `.kiro/grill-receipts/`). To change the plan mid-mission, re-grill it yourself from your own
-terminal, or pause or end the mission first.
+terminal, or pause or end the mission first. **0.12.1.** When the plan contradicts itself, a person can
+also [amend it from the app](#the-completion-verifier) mid-mission: the chat proposes, you approve.
 
 A criterion that paraphrases the plan can quietly change a number. The plan says a canary
 takes 10% of traffic, the criterion says "canary works", and the build uses 10x. Under rules
@@ -972,6 +1016,56 @@ criterion or a cited line afterwards and it no longer applies. Then `--set audit
 mission from `human-blocked` to `audit` with no new run, and `--clear` goes through. The
 honest-exit record lists each override.
 
+<Aside type="note" title="0.12.1">
+New in 0.12.1: the same decision from the app, with no terminal command.
+</Aside>
+
+**From the app: Accept anyway.** Every card in the [Missions drawer](#from-the-app-the-missions-drawer)
+shows the verifier's status (`Verifier: pass`, `rejected`, `stale`, `running`, `no answer` or `not run yet`),
+the run number and the runs used of the cap ("run 8 · 8 of 10 runs used"). When the latest run rejected
+criteria, the card lists each one with the verifier's reason, the plan sentence it quoted, the agent's
+evidence, the cited code and what the verifier compared. **Accept anyway** asks for your reason (at least
+15 characters), records the same override as `--verify-override` with your name, sets the mission back to
+`audit`, and, if no chat is running the mission, re-opens one through **Resume mission**. Each step shows
+on the card as it runs; if a later step fails, the override stands and the card says what to click next.
+It is unavailable while the mission is paused or all agents are stopped, and only the person at the app
+can use it: an agent's QA browser gets 403. A criterion already accepted for this ledger is marked
+**Accepted**. When the chat changes the ledger afterwards, the card says **override voided: the ledger
+changed after you accepted it** and offers Accept anyway again.
+
+**When the plan is what's wrong: amend it.** Two plan sentences can contradict each other, so the
+verifier holds the build to the one a criterion quotes. The chat may then **propose** an amendment; it
+never edits the plan:
+
+```sh
+node <pack>/bin/mission-state.js --propose-amendment --criterion <id> \
+  --replace "<the exact plan sentence>" --with "<the new text>" --why "<at least 15 characters>"
+```
+
+It is refused unless `--replace` is in the frozen plan exactly once, word for word (whitespace and
+markdown ignored). The proposal shows on the mission's card: the plan's sentence and the proposed one side
+by side, the criterion and the reason, with **Approve amendment**, **Edit** (change the new text first) and
+**Accept anyway instead**. Telling the chat "use Q4's version" only prompts it to file the proposal; only
+your approval changes the plan. Approve is available while the mission is `human-blocked`, or in `audit`
+with a rejected verifier run, so the chat is not writing the ledger at the same moment. It asks first,
+then, in order, and stopping with the plan untouched if a step fails:
+
+1. replaces the sentence in a temporary copy of the plan (if the sentence is no longer there: "the plan
+   changed since this was proposed");
+2. writes a grill receipt of kind **`amended`** for the new text, recording the previous receipt, the
+   amendment and who approved it when;
+3. swaps the plan in and moves the mission's frozen plan hash (`mission-state.js --apply-amendment <n>`,
+   a person's command: refused in an agent's shell);
+4. re-points every criterion that quoted the old sentence, and the Policy Values rows that quote it, to the
+   new text. Those criteria go back to `PENDING`, with their old evidence kept as `history`, and their
+   phase reopens;
+5. sets the mission `active` (earlier overrides no longer count: the ledger changed) and re-opens the chat,
+   which re-proves the reset criteria, re-closes the phase and runs the verifier again.
+
+The app's plan list and `--init` accept an `amended` receipt; the plan's pill reads **amended**. The
+honest-exit record lists every amendment (`amendments`), and the closing summary line says
+`plan amended #<n> (<criterion>) by <who>`.
+
 **The cost cap.** A mission gets at most 10 verifier runs. The 11th `--set audit` starts none and
 sets the mission `human-blocked` with `verifier run cap (10) reached`: a person decides what
 happens next.
@@ -1111,6 +1205,8 @@ Each project's page also has a **Mission** card for its own mission.
 | **Resume all** | Lifts stop-all. No confirmation. |
 | **Resume mission** | **0.11.0.** Opens a terminal with a new `dev` chat in the mission's project (`kiroctl open --run`) whose first message continues the mission. Use it after a chat was closed, crashed or was ended as stuck. It is the main button when no chat is running the mission. If one is running, or it looks stuck, it asks before opening a second chat. It is unavailable, with the reason shown, while the mission is paused or all agents are stopped, and for a folder that isn't a bound project (run `kiroctl open --dir <folder> --run` there instead). |
 | **Kill** | Appears 60 seconds after a pause if the hands-off driver is still running. Ends the driver's whole process tree; the turn in flight can lose unsaved work. Asks you to confirm. |
+| **Accept anyway** | **0.12.1.** On a criterion the completion verifier rejected: records your override and returns the mission to audit. See [The completion verifier](#the-completion-verifier). |
+| **Approve amendment** / **Edit** | **0.12.1.** On a plan amendment the chat proposed: changes the plan, records an `amended` grill receipt, and resets the criteria that quoted the old sentence. See [The completion verifier](#the-completion-verifier). |
 
 While stop-all is on, the header button turns into a red **All agents stopped** pill.
 The drawer refreshes every 4 seconds while open. It shows loading, empty ("No missions on
