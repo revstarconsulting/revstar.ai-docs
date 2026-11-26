@@ -73,6 +73,7 @@ Start the mission by typing a slash command in that chat:
 | `/fix-bugs [doc=<path>] [ado=<ids>] [branch=<name>]` | Reproduces, fixes and QA-verifies every bug in the report, the ADO work items, or both. **0.12.0:** `ado=123,456` is new, and `doc=` is no longer required when ids are given. |
 | `/qa-mission variant=full\|fix\|regression [branch=<name>]` | **0.12.0.** Runs a full QA audit as a mission. `fix` also fixes the defects. `regression` also writes the scripted regression suite. See [QA missions](/workflows/qa-and-design/#qa-missions) for the other arguments. |
 | `/ci-qa-coverage [branch=<name>]` | **Deprecated.** An alias for `/qa-mission variant=regression`, removed in 0.13.0. |
+| `/cloudcare-report client=<slug> [month=<YYYY-MM>]` | **0.12.3.** Runs one CloudCare report for one client and one month, as a [`report` mission](#the-report-mission-cloudcare). `month` defaults to the previous calendar month. Run it in the project whose repo is the CloudCare repo. |
 | `/mission` | **0.11.0.** Runs the `mission` skill: sets or tracks any multi-phase goal as the mission in this chat. Use it when no shortcut above fits. |
 
 You can also ask the `mission` skill: "set this as the mission". There is no `--max`.
@@ -88,6 +89,7 @@ You can also ask the `mission` skill: "set this as the mission". There is no `--
 | `feature` | `/build-plan` | A grilled plan (`--plan`) and its receipt. |
 | `bugfix` | `/fix-bugs` | A bug document (`--bug`). |
 | `qa` | `/qa-mission` | **0.12.0.** Nothing but a `--variant`: `full`, `fix` or `regression`. |
+| `report` | `/cloudcare-report` | **0.12.3.** Nothing but a client and a month. See [The `report` mission (CloudCare)](#the-report-mission-cloudcare). |
 
 A `qa` mission has no plan and no bug document. The kind itself freezes the QA scope as `full`, so the
 mission text carries `QA scope: full (qa mission kind, variant <v>)`. It takes two more flags:
@@ -164,7 +166,7 @@ drawer. Before, **Execute plan** could launch only a plan build, and **Shortcuts
 </Aside>
 
 A project's page has a **Start mission** button. It opens the **Start a mission** drawer, which offers
-five mission types. Each one opens a terminal with a v2 `dev` chat whose first message is the slash
+five mission types, and a sixth, **CloudCare report**, on a CloudCare project only (0.12.3). Each one opens a terminal with a v2 `dev` chat whose first message is the slash
 command the drawer shows.
 
 | Type | The line it starts |
@@ -174,13 +176,14 @@ command the drawer shows.
 | **QA full** | `/qa-mission variant=full` |
 | **QA full + fix** | `/qa-mission variant=fix` |
 | **Regression suite** | `/qa-mission variant=regression repo=<repo>` or `new-repo=<org>/<name>` |
+| **CloudCare report** | **0.12.3.** `/cloudcare-report client=<slug> month=<YYYY-MM>` |
 
-Every type takes an optional **Branch**, one word. It defaults to `staging`, then the remote's default
-branch, then `main`.
+Every type except **CloudCare report** takes an optional **Branch**, one word. It defaults to `staging`, then the remote's default
+branch, then `main`. A report runs at the CloudCare repo's current commit and has no branch to pick.
 
 <Steps>
 
-1. **Pick a type.** The drawer opens on five cards. A type the installed pack can't run is greyed out and
+1. **Pick a type.** The drawer opens on five cards (six on a CloudCare project). A type the installed pack can't run is greyed out and
    says "Needs a newer pack. Run `kiroctl update`." The server refuses it too.
 2. **Fill in its form.** The fields are below.
 3. **Watch the check panel.** As you type, a panel runs the same checks the mission's own start does, and
@@ -216,6 +219,17 @@ run on &lt;date&gt;". A record that can't be read is ignored. Nothing moves or d
   mobile (Mobile Next)** needs a mobile app in the project and a Mobile Next key. **CI secrets** is a list of
   `NAME:from` pairs, such as `QA_ADMIN_PASSWORD:qa.admin`. The drawer disables an option it can't offer and
   says why, for example "No CI/CD found in this project's repos".
+- **0.12.3.** **CloudCare report.** Listed only for a project whose repo is the CloudCare repo (the folder with
+  `cloudcare.sh` and `access.yaml`, in the project or one of its repos). Elsewhere the type is hidden, not greyed
+  out. Pick the **Client** from the repo's `clients/<slug>/config.yaml` files (`_example` is left out) and type the
+  **Month** as `YYYY-MM`. The month starts as last month. The checks are the CloudCare repo (clean, at a recorded
+  commit), the client, the month, the **RevStar hub sign-in** and no other report mission for the same client and
+  month. A month in the future fails. The current month passes with a warning, because its numbers are partial.
+  A failing hub check shows **Set up** (when the config entry is missing) and **Sign in** beside it; click it,
+  finish in the browser, then **Check again**. The confirm dialog shows that it reads the client's AWS accounts (read-only),
+  the file it will write, for example `reports/<client>/<YYYY-MM>/cloudcare-<client>-<YYYY-MM>.html`, and the
+  commit it will run at. Nothing is pushed. It has no **Branch**, **Estimate first** or **Produce UAT guide +
+  blockers** box.
 - **0.12.2.** **Produce UAT guide + blockers.** A box on **Fix bugs**, **QA full**, **QA full + fix** and
   **Regression suite**, unticked by default. Ticking it adds `delivery-docs=yes` to the line. **Build a plan**
   has no box, because a feature mission always produces them. See [Delivery docs](#delivery-docs).
@@ -240,6 +254,72 @@ A stopped or dead mission in the [Missions drawer](#from-the-app-the-missions-dr
 link. It reopens this drawer with the mission's type and settings filled in.
 
 The drawer refuses while a mission is already running (or paused) in the project.
+
+### The RevStar hub sign-in card
+
+<Aside type="note" title="0.12.3">
+New in 0.12.3.
+</Aside>
+
+A project whose repo is the CloudCare repo shows a **RevStar hub sign-in** card on its page. The project must be bound
+to the `revstar` client (the same Identity Center, `revstar.awsapps.com`). If it isn't, the card says to bind it first.
+A project with no CloudCare repo shows no card.
+
+The card has three rows:
+
+| Row | What it says |
+| --- | --- |
+| **Hub config entry** | Whether `[sso-session revstar]` is in the AWS config the session uses: the client store on Linux and WSL, the client's sandbox `HOME` on macOS. |
+| **Signed in** | `ok` with the expiry time, `expired` with the time it expired, or `no`. |
+| **Last check** | The result of the last `./cloudcare.sh check`, with each account's role result, or "never run". |
+
+And three buttons:
+
+- **Set up** writes the missing `[sso-session revstar]` entry from the `revstar` client's start URL and region. It shows
+  exactly what it will add first and asks. It only appends. It never touches another entry.
+- **Sign in** opens a terminal running `./cloudcare.sh login` in the client's session. The browser step is yours,
+  the same as the client **Sign in** button. It needs the config entry first.
+- **Check** runs `./cloudcare.sh check <client>` and lists each account. With more than one client, pick which one
+  first. A check can take a minute.
+
+The same steps are in a terminal as `kiroctl cloudcare setup | login | check | status`
+(see [Commands](/reference/commands/)).
+
+Under the project's Mission card, **Last CloudCare report: `<client> <month>` → `<path>`** names the newest report
+from a cleared report mission. A report mission's card in the Missions drawer shows "CloudCare report · client ·
+month" and the output path.
+
+### Resolve check failures
+
+<Aside type="note" title="0.12.3">
+New in 0.12.3. It works on every mission type, not only CloudCare.
+</Aside>
+
+When any check on the Start mission panel fails, a **Resolve check failures** button appears under the check rows. It
+opens a terminal with a v2 `dev` chat that already knows which checks failed. Nothing shows while every check passes.
+
+**What the chat may do.**
+
+- Diagnose read-only, and explain each failure in plain words.
+- Fix the environment where it can: open the sign-in terminal through the app's **Sign in**, install a missing tool,
+  start the QA test copy, re-run a probe.
+- Walk you through anything only a person can do, such as a browser sign-in or an approval.
+
+**What it may not do.** It can't write `qa-contract.json`, `qa-contract.local.json`, plan files or grill receipts
+while it is open. A gate refuses those writes (see [The resolve-chat guard](/capabilities/gates/#the-resolve-chat-guard)),
+so a red check can't be turned green by weakening it. When the check itself is wrong, for example a stale probe from an
+old plan, the chat **proposes** the change and you apply it in the app's person-only **Access** section.
+
+**It is not a mission.** There is no `--init` and no ledger. The first message names the project, the plan or type, and each failing
+check as `category · status · detail · fix`, within the 2,000-character prompt limit. The full detail goes to
+`<project>/.kiro/resolve-<timestamp>.json`, and the message points to it. Each click writes a new file.
+
+**While it is open.** The check panel shows **A resolve chat is open for this project** with a **Check again**
+button, in place of **Resolve check failures**. Come back when you are done and click **Check again**. The app arms the
+guard with a marker file under `~/.kiro/resolve/`, outside the project, so the chat can't delete it. It removes the
+marker when the chat's process ends, or after 4 hours.
+
+Only the person at the app can open one. The app refuses an agent's token.
 
 ## Import a pre-grilled plan
 
@@ -432,6 +512,7 @@ was skipped, not a tool bug. `mission-state.js --init` verifies:
 - **grill-me receipt** (feature missions) — a receipt keyed to the plan file's
   hash, so an ungrilled or since-edited plan is caught.
 - **bug-report artifact** (bug-fix missions) — a real bug report to work from.
+- **A `report` mission has its own preflight.** **0.12.3.** The QA environment, the access block and the production-target hold do not apply to it. See [The `report` mission (CloudCare)](#the-report-mission-cloudcare).
 - **Nothing else for a QA mission.** **0.12.0.** A `qa` mission has no plan, no grill receipt and no bug
   document. Its preflight checks the QA environment and the access block below.
 - **access preflight** (every kind) — the GitHub account the project expects can reach the
@@ -1088,6 +1169,112 @@ The wrap also captures **estimate vs actual** — autonomous time, units, and hu
 supervision/verification minutes — and appends one row to
 `memory/estimation-calibration.md` for [self-calibration](/workflows/pipeline/#self-calibration).
 
+## The `report` mission (CloudCare)
+
+<Aside type="note" title="0.12.3">
+New in 0.12.3. A `report` mission produces a client report, not code.
+</Aside>
+
+A `report` mission runs one CloudCare report for **one client and one month**. It reads that client's AWS accounts
+(read-only), GitHub and Terraform Cloud, writes the narrative, and renders one self-contained HTML page. Start it with
+`/cloudcare-report client=<slug> month=<YYYY-MM>` (see [the skill](/capabilities/skills/)) or the app's
+**CloudCare report** type. Two missions for the same client and month can't run at once.
+
+It differs from every other mission in three ways:
+
+- Missions are staging-only, and QA never touches production. A report reads **production client accounts**, under a
+  narrow, fenced exception.
+- It has no plan, no grill receipt and no staging URL.
+- Its deliverable is a file in a git-ignored folder, not a pull request.
+
+**Where it runs.** In the project whose repo is the CloudCare repo (`cloudcare.sh` and `access.yaml` at its root). Anywhere
+else the skill stops and says so.
+
+**What it produces.** In the CloudCare repo, under `reports/<client>/<YYYY-MM>/`:
+
+- `cloudcare-<client>-<YYYY-MM>.html`, the report;
+- `data/*.json`, the collected facts, and `narrative.yaml`, the written story;
+- `internal-notes.md`, the RevStar-internal items, which never go in the report;
+- `run-record.json`, which records that the run used the admin hub chain, and `qa/` with the screenshots and the review record.
+
+**The preflight.** `mission-state.js --init --kind report --report cloudcare --client <slug> --month <YYYY-MM>` runs its own
+checks. The staging checks (the QA contract probe, the reachability check and the production-target hold) and the QA
+fan-out and full-run gates do not apply.
+
+| Check | Fails when |
+| --- | --- |
+| Client config | `clients/<slug>/config.yaml` doesn't exist. |
+| Repo clean | A tracked file is modified, or HEAD is not the commit the mission recorded. The recorded commit is the one the report runs at. |
+| Fence armed | `cloudcare-fence` is not wired into the agents. |
+| Hub sign-in | The RevStar hub sign-in is missing or expired, or the client's **payer** account doesn't answer. A failing **member** account is a warning, and the report notes it. |
+| One live mission | Another live report mission already covers this client and month. |
+| Drift (a warning) | CloudCare's own skill changed since the pack's copy was ported. It names the files, appears in the first message and the closing summary, and never blocks. |
+
+The month must be `YYYY-MM` and not in the future. The current month starts the mission with a "month not finished" warning.
+
+**The run.** The skill checks access, then collects (5 to 20 minutes, in the background, polled so a hung run shows as a
+failure). In parallel, a read-only `scout` sub-agent mines the month's history: the client repos' git log and merged PRs,
+last month's open items, and Kiro session history for the month. Secrets, tokens, phone numbers and patient data are
+scrubbed from it. Then the skill drafts, writes `narrative.yaml`, renders the HTML, takes screenshots in a headless browser
+and **reads each one**, and runs the done-check. The PowerPoint steps, `./cloudcare.sh build` and `render`, are not run
+by the mission.
+
+**The done-check.** `--clear` runs it and refuses until every item passes:
+
+- the HTML exists, is newer than the data and passes the lint, with **no placeholders** (`{{…}}`, `[verify]`, `TODO`);
+- **every critical or high finding** in `data/*.json` is in `narrative.yaml` as a critical issue, and its title is on the page;
+- **every number is traced.** A number in the narrative must match `data/*.json` or `history.md`. A number the agent
+  calculates goes in `derived-numbers.json` with its formula, and the formula may use only collected numbers and unit
+  constants such as 100, 12 or 1000. The trace is written to `qa/number-trace.json`;
+- the screenshots belong to the current page, with no overflow and no empty section, and the review is recorded with notes;
+- `run-record.json` says "admin hub chain", and `internal-notes.md` exists (it may say "none");
+- the CloudCare repo is **unchanged**: no tracked file modified, and HEAD at the recorded commit.
+
+The acceptance ledger has one criterion for each group: `report-html`, `critical-issues`, `numbers-trace`,
+`screens-reviewed`, `repo-unchanged` and `internal-notes`. The [completion verifier](#the-completion-verifier) still
+audits it.
+
+**Critical and high findings never stop the mission.** A public data exposure or a missing root MFA appears in the report
+as a **critical issue**, naming the resource and never its contents, and in the closing summary. You decide what to do before
+the report goes to the client. The mission never fixes the client's environment.
+
+**Failure modes.**
+
+- **AccessDenied in a member account.** The mission notes it and carries on. The report's **Data gaps** section shows it.
+- **A failure in the payer account, or the hub sign-in expiring.** The mission stops BLOCKED with
+  `--set human-blocked-confirmed --blocker payer-access` (or `--blocker hub-signin`). Those two dependencies are declared
+  at `--init` for this. The message names the account and the **Sign in** button on the hub sign-in card. Sign in, then resume.
+- **The preflight fails on the hub sign-in.** The agent tells you to click **Sign in** and stops. It never runs
+  `./cloudcare.sh login` itself, and the fence refuses it.
+
+**The fence.** While a report mission runs, [`cloudcare-fence`](/capabilities/gates/#the-cloudcare-fence-cloudcare-fence)
+lets the agent reach client AWS only through `./cloudcare.sh clients | check | collect | draft | build | render`, and locks
+the repo's code: no writes outside `reports/<client>/<YYYY-MM>/`, and no `./cloudcare.sh` call unless the repo is still at the
+recorded commit. A wrong or missing collector becomes a finding for a person in `internal-notes.md`, and the report says the
+data for that area is incomplete. Code fixes go through a normal reviewed mission on a branch. This overrides the rule in
+CloudCare's own skill to fix the collector.
+
+**"Ran on the admin hub chain."** CloudCare reads client accounts through `AdministratorAccess`, then `RevStarSSOAdmin`, then
+each member's `OrganizationAccountAccessRole`. That is wider than RevStar's IAM Identity Center standard, which asks for
+`ViewOnlyAccess` in a production account that holds PHI. RevStar **recorded the deviation on purpose** and fenced the agent
+instead of changing every client account. Each report records "ran on the admin hub chain" in `run-record.json`, and the
+closing summary repeats it, so the deviation stays visible per client.
+
+**Internal notes.** `internal-notes.md` holds what RevStar should know but the client should not see: secrets or patient
+data found in an engineer's working folder, risky manual changes, and every collector gap. The closing summary lists them too.
+
+**The closing summary** lists the output path, "ran on the admin hub chain", every critical and high finding by resource
+and title, the internal notes, the judgement calls made, any drift warning and any data gaps.
+
+**Things to know.**
+
+- **The kind can't change while the mission is live.** A second `--init` in the same session as another kind is refused,
+  because that would lift the fence. Finish and `--clear`, or end the mission in the app, then start the other one.
+- **`mission-docs.disabled` does not turn the report off.** The report is the mission's deliverable, not an add-on, so
+  the [delivery docs](#delivery-docs) switch doesn't touch it. A report mission has no UAT guide or blockers step.
+- **No staging QA.** Its visual QA is the screenshots and the recorded review.
+- **Nothing is pushed.** `reports/` is git-ignored client data.
+
 ## Delivery docs
 
 <Aside type="note" title="0.12.2">
@@ -1559,6 +1746,15 @@ Type each line in a v2 `dev` chat, or pass it as `kiroctl open --run --prompt "<
 
    `/ci-qa-coverage` still works for one more release as an alias for the regression variant. It is
    removed in 0.13.0.
+
+5. **Run a CloudCare report.** **0.12.3.** In the project whose repo is the CloudCare repo, after you have signed in to the
+   RevStar hub:
+
+   ```text
+   /cloudcare-report client=<slug> month=2026-10
+   ```
+
+   `month` defaults to the previous calendar month. See [The `report` mission](#the-report-mission-cloudcare).
 
 </Steps>
 

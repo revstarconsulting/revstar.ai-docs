@@ -15,7 +15,7 @@ that powers RevStar SOP standards. See [Gates → Mission Control sign-in](/capa
 
 ## What it sends
 
-Eight event types, nothing else:
+Ten event types, nothing else:
 
 | Event | Meaning |
 | --- | --- |
@@ -27,6 +27,17 @@ Eight event types, nothing else:
 | `preflight` | A preflight check ran. |
 | `mc_gate_bypass` | You used the time-limited sign-in bypass (`kiroctl sop bypass`): hours + a reason from `mc-outage \| no-browser \| other`. |
 | `client_heartbeat` | RevStar.ai is installed, signed in and in use on this machine, so you appear in Mission Control even on a day with no other events. Sent at most **once per machine per day** (sent from 0.6.8; 0.6.5–0.6.7 recorded it but held it locally), from the first of: a `dev`/`coder`/`scout` session starting (`trigger: session`), the app opening (`app`), or an install / `kiroctl update` (`install`). Carries the channel, platform, Kiro version, and two yes/no flags: the pack is current and the default agent is a RevStar.ai agent. No paths, repo names or project. |
+| `autoupdate_failed` | **0.12.3.** The scheduled [auto-update](/start/install/#automatic-updates) has failed **2 times in a row**, and then at most **once a day** while it keeps failing. Fields: `reason` (`signature`, `local-edits`, `diverged`, `network`, `selftest` or `other`), `consecutive_failures` (a whole number, 1 or more), `from_version` (the installed version, a string) and `channel` (`beta` or `stable`). No paths, no error text. |
+| `autoupdate_recovered` | **0.12.3.** The first scheduled run that succeeds (updated, or already up to date) **after a failure was reported**. Fields: `from_version`, `to_version` (both strings) and `failures_before` (the failures in a row, a whole number, 1 or more). Sent once. A run that never reached the 2-failure report sends nothing. |
+
+<Aside type="caution" title="Mission Control must accept these two events">
+`autoupdate_failed` and `autoupdate_recovered` are new event types. RevStar.ai validates, spools and flushes them like every
+other event, and both are tested locally (the validator, the spool, and a flush to an endpoint that is down). But Mission Control has to add them to **its own allowlist**
+first, and until its team does, **the end-to-end delivery is not verified**: Mission Control may reject them. A handoff
+that gives the Mission Control team both schemas has been written for them. A rejection shows under
+**Rejected events** in Settings → Mission Control, and the events are dropped. Nothing
+else is affected, because the update itself never depends on the telemetry.
+</Aside>
 
 ## When it sends
 

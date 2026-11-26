@@ -464,12 +464,64 @@ remote branch, stop the update with a message and change nothing.
 | `--channel <beta\|stable>` | Switch to that [release channel](#release-channels--stable-vs-beta) and remember it. |
 | `--yes` | Answer yes to the "Move back to stable?" question below without asking. |
 | `--registry <path>` | Point at the registry clone if it moved since install. |
+| `--auto` | **0.12.3.** What the [scheduled job](#automatic-updates) runs. No prompts, your current channel only, never `--yes`. It skips while a mission or a Kiro chat is running. |
  Restart your Kiro session afterward so steering,
 skills and MCP servers reload. (On Windows, run it inside WSL.)
 
 If you aren't signed in to Mission Control yet, the update ends by opening the
 RevStar.ai app on its sign-in banner (or, with no display or `KIRO_NO_GUI=1`, by
 printing the one step to take).
+
+### Automatic updates
+
+<Aside type="note" title="0.12.3">
+New in 0.12.3. Before, nothing updated RevStar.ai unless you ran `kiroctl update`.
+</Aside>
+
+RevStar.ai now updates itself. It is **on by default**. Every install, and every `kiroctl update` after it, sets up a
+scheduled job that runs `kiroctl update --auto` **every 3 hours and once at login**. You don't need to do anything.
+
+| Where you run it | The job |
+| --- | --- |
+| **Linux and WSL**, with cron running | Two lines in your user crontab, each ending in `# kiroctl-autoupdate`: `0 */3 * * *` and `@reboot`. The marker lets the installer find and replace them, so they are never duplicated, and your other crontab lines are never touched. |
+| **WSL without cron**, and **native Windows** | A per-user Task Scheduler task named `kiroctl-autoupdate`. No admin rights are needed. It repeats every 3 hours and has a logon trigger. From WSL it launches `wsl.exe` in your current distro. |
+| **macOS** | A per-user LaunchAgent, `~/Library/LaunchAgents/ai.revstar.kiroctl-autoupdate.plist`, with `StartInterval` 10800 (3 hours) and `RunAtLoad`. macOS uses `launchd` because cron is deprecated there. |
+
+On Linux with cron installed but not running, no job is created. The install says "cron is not running here". Start
+cron (for example `sudo service cron start`), then run `kiroctl autoupdate on`.
+
+**What a scheduled run does.** It is the same verified, fast-forward-only update as `kiroctl update`, with no questions.
+It stays on your current channel and never moves you between channels. It runs one at a time (a lock file). When
+nothing is newer, it reinstalls nothing.
+
+**It waits for your missions.** The job does nothing while any mission on the machine is active, paused or waiting, or
+while any `dev`, `coder` or `scout` chat is running. It logs `skipped: mission running` (or `chat running`) and tries
+again at the next scheduled time. An update is only ever applied between missions. A chat you already have open keeps
+the skills it loaded until you restart it.
+
+**An install with no git checkout gets no job.** A copy made by `sync-live.sh`, or a packaged install, can't
+fast-forward itself, so a job could only fail every 3 hours. It gets none, and `kiroctl doctor` says so. Update it the
+way it was installed.
+
+**Turning it off or on.**
+
+```sh
+kiroctl autoupdate status     # on or off, which scheduler, the last run, failures in a row
+kiroctl autoupdate off        # removes the job and records your choice
+kiroctl autoupdate on         # creates it again
+```
+
+The app's **Settings → Auto-update** has the same switch: **Update RevStar.ai automatically (every 3 hours and at login)**.
+Turning it off records the choice in `<kiro home>/autoupdate.json`, so installs and updates never create the job again.
+`KIRO_NO_AUTOUPDATE=1` (set it for a CI or test machine) makes an install skip creating the job at all, without recording a choice.
+
+**When it fails.** Each run writes `<kiro home>/autoupdate-status.json` with `at`, `result` (`updated`, `up-to-date`,
+`failed` or `skipped`), `reason`, `fromVersion`, `toVersion`, `channel` and `consecutiveFailures`. The log is
+`<kiro home>/autoupdate.log` (it rolls over at 1 MB). After **2 failures in a row** the app shows a banner,
+**Auto-update is failing**, that names the reason and its fix, with an **Auto-update settings** button.
+`kiroctl doctor` shows the same in its `auto-update` row. The reasons are `signature`, `local-edits`, `diverged`,
+`network`, `selftest` and `other`. [Troubleshooting](/reference/troubleshooting/#automatic-updates) has the fix for each. The second
+failure, and a later recovery, are also reported to Mission Control; see [Telemetry](/capabilities/telemetry/#what-it-sends).
 
 ## The video toolchain
 
