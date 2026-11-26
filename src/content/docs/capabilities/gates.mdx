@@ -1,12 +1,14 @@
 ---
 title: Gates
-description: The 18 hooks wired into the agents. Five are armed by default (four safe ones, and mission-state-protect from 0.11.0), eight are always on, the rest are inert until you arm them, and all of them fail open.
+description: The 19 hooks wired into the agents. Five are armed by default (four safe ones, and mission-state-protect from 0.11.0), eight are always on, cloudcare-fence is always on for a report mission, the rest are inert until you arm them, and all but the fence fail open.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Gates are hooks wired into the agents' tool calls. One property holds for all
-eighteen, without exception, and two more describe when a gate is on:
+Gates are hooks wired into the agents' tool calls. One property holds for eighteen of
+the nineteen, and two more describe when a gate is on. The exception is
+`cloudcare-fence` (0.12.3), which **fails closed**: see
+[The CloudCare fence](#the-cloudcare-fence-cloudcare-fence).
 
 - **Four safe hooks are armed for you.** `mission-inject`, `mission-turn-recorder`,
   `session-context` and `update-notify` can't block anything: they inject text or
@@ -39,7 +41,10 @@ eighteen, without exception, and two more describe when a gate is on:
   still off by default: a plain install and `kiroctl update` do not arm it, and a gate with a
   `.disabled` file stays off.
 
-- **Fails open.** (All eighteen.) A gate that errors or isn't armed never blocks the call it
+- **`cloudcare-fence` (0.12.3) is on only while a CloudCare `report` mission runs.** It has no flag file and no
+  off-switch, and with no report mission it does nothing. See [The CloudCare fence](#the-cloudcare-fence-cloudcare-fence).
+
+- **Fails open.** (All but `cloudcare-fence`.) A gate that errors or isn't armed never blocks the call it
   would otherwise inspect. An armed gate that doesn't fire is worse than no
   gate at all, because it's trusted — arm one at a time and verify it.
 
@@ -49,13 +54,13 @@ gate should be stopping something and isn't, confirm the flag file exists
 before assuming the rule doesn't apply.
 </Aside>
 
-## The eighteen gates
+## The nineteen gates
 
 | Gate | Trigger | Kind | What it does |
 | --- | --- | --- | --- |
 | `mission-inject` | Session start | inject | Re-injects the active mission so it survives context compaction. Armed by default. |
 | `mission-turn-recorder` | Prompt submitted, turn end | inject | Writes the turn receipt the mission chat's continue hook reads (a cleared mission emits a terminal stop) and times each turn, which is where a mission's [autonomous hours](/capabilities/telemetry/#autonomous-hours) come from. Armed by default. |
-| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. Armed by default from 0.11.0. `mission-state.js` enforces the clear rule itself too, so it holds with the gate off. During an active mission it also refuses an agent's edits to a lane repo's `.mission-lane` file and to `scripts/broker/registry.json` (0.11.0, beta): they hold the lane's protected branches and lease, so a person edits them outside a mission. Reading is fine, the `.mission-lane.lane-1` / `.lane-2` templates are not guarded, and with no active mission both are ordinary files. Its stop-control half is **always on**: it also refuses an agent's attempt to touch the pause and stop-all files, the mission index, a hook's `.disabled` opt-out, the app's token log and mission API, and `kiroctl missions` (except `list`). **0.12.0.** It also refuses an agent writing `.kiro-mission*.approval.json`, running `kiroctl missions approve` or `decline`, and running `--clear --estimate-declined`: the answer to a QA mission's estimate is a person's. See [below](#what-mission-state-protect-refuses-even-when-unarmed). |
+| `mission-state-protect` | write / shell | block | Refuses hand-edits of mission state, receipts, gate flags (`.enabled` and `.disabled`), the scoped QA record and the QA close-receipts, and un-audited mission clears. Armed by default from 0.11.0. `mission-state.js` enforces the clear rule itself too, so it holds with the gate off. During an active mission it also refuses an agent's edits to a lane repo's `.mission-lane` file and to `scripts/broker/registry.json` (0.11.0, beta): they hold the lane's protected branches and lease, so a person edits them outside a mission. Reading is fine, the `.mission-lane.lane-1` / `.lane-2` templates are not guarded, and with no active mission both are ordinary files. Its stop-control half is **always on**: it also refuses an agent's attempt to touch the pause and stop-all files, the mission index, a hook's `.disabled` opt-out, the app's token log and mission API, and `kiroctl missions` (except `list`). **0.12.0.** It also refuses an agent writing `.kiro-mission*.approval.json`, running `kiroctl missions approve` or `decline`, and running `--clear --estimate-declined`: the answer to a QA mission's estimate is a person's. **0.12.3.** While a **resolve chat** is open for a project it also refuses writes to that project's access contract, plan files and grill receipts, and it protects the resolve markers ([below](#the-resolve-chat-guard)). See [below](#what-mission-state-protect-refuses-even-when-unarmed). |
 | `qa-render-gate` | fetch | block | Forces a real-browser render during QA instead of accepting a fetch as a visual check. A `mobile` run is not exempt: web pages still need the browser. |
 | `qa-report-gate` | write | block | Refuses a QA report missing `WORKS` + `MATCHES INTENT` verdicts (each with `method: live\|inspection\|code`), render evidence, a real coverage receipt file (full runs), or the adversarial-pass receipt (runs with change items); and any "PASS with note". For a run marked `mobile`, also refuses a report with no fresh device screenshot, a device still booked, a created test account with no cleanup, or no build file id and commit. **0.11.0.** The heading test (a body that opens like a QA report) applies only to `.md`, `.markdown`, `.txt` and extensionless files, never to code such as `.sh`, `.js` or `.py`; a path under `qa-reports/` is still judged as a report. **0.12.0.** Two file names under `qa-reports/` are exempt, because each is an input or a catalog, not a QA report: the bug document `qa-reports/fix-bugs-<mission-id>.md` that `/fix-bugs ado=` writes, and the regression catalog `qa-reports/ci-regression-candidates.md`. Neither needs verdict lines or a waiver. Any other file name there is still judged as a report. |
 | `git-protect-gate` | shell | block | Refuses direct commit/merge/push to protected branches and `--no-verify`; allows `gh pr`. **0.11.0.** Also checks a PR before `gh pr merge` ([below](#the-merge-check-git-protect-gate)). In a repo in a Mission Control lane it also protects the lane file's `branch_base` and `pr_base` (0.10.0, beta). **0.11.0.** Repo paths are compared by real path, so a linked repo is one lane entry. |
@@ -71,6 +76,7 @@ before assuming the rule doesn't apply.
 | `mission-pause` | Every tool call (`dev`, `coder`, `scout`) | always-on block | The emergency brake. Refuses every tool call in a session whose mission a person paused, and in every session on the machine while **Stop all agents** is on. Lets only the `goal` completion tool through. Fails open on its own errors. See [Stopping a mission](/workflows/missions/#stopping-a-mission). |
 | `broker-merge-gate` | shell (`dev`, `coder`) | always-on block | **0.10.0.** In a lane repo during a mission, registers the PR under the mission's broker lease (`add-pr`) before `gh pr merge` goes through. Refuses the merge when the broker says the mission doesn't hold the lane (naming the holder), while the mission is queued or its lane is lost, and for `gh pr merge --auto`. Lets the merge through with a warning when the broker can't be asked on a fail-open lane. Does nothing outside a lane repo or a mission. See [below](#what-broker-merge-gate-refuses). |
 | `tool-watchdog` | Every tool call, pre and post (`dev`, `coder`, `scout`) | always-on | **0.11.0.** Ends a tool call that has run for 30 minutes without a result, and a chat stuck between tools after 20 minutes with no hook event and no tool process. A person can turn it off with `tool-watchdog.disabled`. See [The stuck-tool watchdog](#the-stuck-tool-watchdog). |
+| `cloudcare-fence` | Every tool call (`dev`, `coder`, `scout`) | always-on block, **fails closed** | **0.12.3.** Active only while a [`report` mission](/workflows/missions/#the-report-mission-cloudcare) runs. Lets the agent reach client AWS only through `./cloudcare.sh clients\|check\|collect\|draft\|build\|render`, and locks the CloudCare repo's code. Does nothing when no report mission is active, and has no switch. See [The CloudCare fence](#the-cloudcare-fence-cloudcare-fence). |
 
 ## What `broker-merge-gate` refuses
 
@@ -131,6 +137,8 @@ status reads **armed**, **off by choice** or **not armed**.
   can refuse a prompt, `mobile-guard` can refuse a Mobile Next tool call, and
   `mission-pause` refuses every tool call, but only while a person has paused a
   mission or stopped all agents.
+  **0.12.3.** `cloudcare-fence` is always on too, but it only acts while a `report` mission runs, and it is
+  the one gate that **fails closed**.
 
 ## The four safe hooks are armed by default
 
@@ -220,6 +228,9 @@ Its stop-control half never did. With or without the flag, an agent can't:
 - **0.12.1.** apply a plan amendment (`mission-state.js --apply-amendment`, the app's **Approve amendment**) or
   write an `amended` grill receipt (`grill-receipt.js amend`, alongside `write` and `import`). The chat may
   only `--propose-amendment`. The app's accept and amend routes answer 403 to an agent's token;
+- **0.12.3.** write, delete or move a **resolve marker** (`~/.kiro/resolve/`), the file the app writes while a
+  [resolve chat](/workflows/missions/#resolve-check-failures) is open. It is protected like the pause files, so
+  a chat can't remove it to lift the guard below;
 - **0.11.0.** start or advance a mission from any agent other than `dev`, `coder` or `scout`. `mission-state.js --init`, `--set`, `--yield`, `--touch`, the clear command, `--accept-add`, `--accept-set`, `--accept-rm` and `--resume`, `mission-broker.js claim`, `release` and `add-pr`, and `mission-acp-driver.js` are refused. Read-only status still works: `mission-state.js`, `--json`, `--accept-show`, `--accept-json` and `--hours`. `mission-state.js` checks the agent itself, from the chat process. The [global hook](#the-global-hook) refuses the shell commands in a v3 session on a foreign agent.
 
 **The allow-list.** Under the kiro home, a destructive glob, variable or `find` is
@@ -247,6 +258,83 @@ command passes as a sanctioned write only when it actually runs one, as in
 `node <pack>/bin/mission-state.js …`. A command such as
 `rm .kiro-mission # mission-state.js` used to get through on the name alone. It is
 refused now.
+
+## The resolve-chat guard
+
+<Aside type="note" title="0.12.3">
+New in 0.12.3. It is part of `mission-state-protect`, and it is always on, with no enable flag.
+</Aside>
+
+The app's **Resolve check failures** button opens a `dev` chat to look at a failing Start mission check (see
+[Resolve check failures](/workflows/missions/#resolve-check-failures)). That chat could make a red check
+green by weakening the check, so the app arms a guard while it is open.
+
+- **The marker.** When the app opens the chat it writes one small file, `~/.kiro/resolve/<project-hash>.json`, naming
+  the project folder and the plan. It lives under the kiro home, not in the project, so the chat can't delete it.
+  `mission-state-protect` refuses an agent's write, delete or move of that folder, like the pause files.
+- **When it ends.** The app removes the marker when the chat's process ends. A marker also stops counting after
+  **4 hours**, whether or not it was removed.
+- **What the guard refuses** while a marker is live for the project: a write to `qa-contract.json`,
+  `qa-contract.local.json`, any `plan*.md` file, the plan the check named, or anything under `.kiro/grill-receipts/`. It
+  covers the write tools and shell: a redirect, `tee`, `rm`, `mv`, `sed -i`, `perl -i`, `ruby -i`, a copy or link
+  that lands on one of those files, a Python or Node one-liner, `git checkout` and `git restore`. A write through
+  a symlink is judged by what the link points at.
+- **What it allows.** Reading those files. Copying one somewhere else (only the destination of a copy counts).
+  Everything outside those files: the chat can install a missing tool, start the QA test copy, open the sign-in
+  terminal and re-run a probe.
+- **The way out.** The chat **proposes** the change to the check, and you apply it in the app's person-only
+  **Access** section.
+
+The refusal reads `BLOCKED mission-state-protect: a resolve chat must not change the check it is resolving`. As with the
+other stop controls, a command that builds the file name at run time is not chased; see
+[What it does not chase](#what-mission-state-protect-refuses-even-when-unarmed).
+
+## The CloudCare fence: `cloudcare-fence`
+
+<Aside type="note" title="0.12.3">
+New in 0.12.3. The gate is `kiro/gates/cloudcare-fence.js`.
+</Aside>
+
+A [`report` mission](/workflows/missions/#the-report-mission-cloudcare) reads client AWS accounts, in production,
+on RevStar's admin hub chain (`AdministratorAccess`, then `RevStarSSOAdmin`, then each member's
+`OrganizationAccountAccessRole`). RevStar kept that chain and **fences the agent** instead. The fence is a gate on the agent's
+tool calls, and it is active only while a mission whose kind is `report` is active for the session.
+
+**What it allows.** Client AWS is reachable through one path:
+
+```text
+./cloudcare.sh clients | check | collect | draft | build | render
+```
+
+`login` is not on the list. The browser sign-in is a person's step.
+
+**What it refuses.**
+
+- Any other `aws` command, by any spelling: a path, quotes, an `env`, `command`, `xargs` or `sudo` wrapper, an alias, a
+  function, `bash -c` or `sh -c`, `eval`, `$(…)`, backticks, a script file or a heredoc.
+- `boto3` and `botocore`, `python -c`, inline code in any interpreter, and `pip`. `perl`, `ruby`, `php`, `deno`, `bun` and
+  similar are refused outright.
+- Anything that names the hub SSO session or profile, a client or hub account id, `assume-role`, `get-role-credentials`,
+  `sts`, `~/.aws`, or an `AWS_*` credential variable.
+- A `./cloudcare.sh` subcommand outside the six.
+
+**The code lock.** The mission runs CloudCare at the clean commit it started from, recorded at `--init`. Before every
+allowed `./cloudcare.sh` call, the gate checks that no tracked file in the repo is modified and that `HEAD` is the recorded
+commit. A difference refuses the call. No tool may write inside the repo except under `reports/<client>/<YYYY-MM>/`. A wrong
+or missing collector becomes a finding for a person, and the code fix goes through a normal reviewed change on a branch, never under the admin
+chain.
+
+**It fails closed.** Every other gate on this page fails open. This one does not: once a report mission is, or may be, active
+(the lookup threw, the mission files are ambiguous, or the gate file can't be read), any error blocks the call with
+`BLOCKED cloudcare-fence: internal error (…); the fence fails closed`. A broken fence must never look like an open one.
+
+**Always on for a report mission, and no switch.** There is no `.enabled` or `.disabled` file for it. With no report mission
+active it allows every call at once and costs nothing. `mission-docs.disabled` does not affect it.
+
+**Limits, stated.** A command whose name or arguments are built by something the parser can't evaluate is refused when
+it lands where the command name goes, but an argument assembled at run time that only a program's own logic turns into a
+forbidden act (a Makefile recipe, for example) is not chased. The fence is a strong guard against the agent
+reaching client AWS by accident or by an obvious route. It is not a sandbox.
 
 ## The global hook
 
