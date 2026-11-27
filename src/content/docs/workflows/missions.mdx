@@ -963,7 +963,7 @@ These do not block a clear. The exit is then **PARTIAL**, not COMPLETE:
   record and its console line name each one and who decided it: the plan's descoping text
   for `access-descoped:`, the criterion's `ackedBy` for `skipped:` (`unknown` if absent).
 - **0.12.0.** A criterion whose id starts `needs-decision:` or `budget-exhausted:`. They exist only on a
-  [QA mission](/workflows/qa-and-design/#qa-missions), and they can never be MET either.
+  [QA mission](/workflows/qa-and-design/#qa-missions) (except `budget-exhausted:mac-lane`, below), and they can never be MET either.
   - `needs-decision:<finding-id>` is a finding of a `fix` mission that is a behaviour, copy or product
     call, or missing access, not a defect. It is added with a triage reason of at least 15 characters and
     a cite into the findings file. The record lists each one with its triage. The completion verifier
@@ -973,6 +973,12 @@ These do not block a clear. The exit is then **PARTIAL**, not COMPLETE:
   - `budget-exhausted:mobile` is on a `regression` mission whose scripted device run stopped on
     `BUDGET-EXHAUSTED`. It lists the mobile tests that were written but not run on a device. The script
     checks the record `mobile-qa.js` wrote when it refused. The budget is never raised.
+  - **0.12.4.** `budget-exhausted:mac-lane` can be on a mission of any kind. It marks the macOS release checks that
+    `kiroctl nomac run` did not start because the monthly Mac-lane budget or the NoMac credit is used up (a missing
+    NoMac key is not a budget deferral and adds no criterion). The run writes a record next to the mission and prints
+    the command and the steps to resolve it: add credit or raise the budget, then run the Mac lane again. The
+    criterion is checked against that record, so it can't be added by hand, and it can't be removed. The mission does
+    not wait for funds: it finishes its other work and ends **PARTIAL**. See [The budget](/workflows/mac-lane/#the-budget).
 - An **advisory** mission (started without `--kind`, `--plan` or `--bug`, or begun before
   those existed) that has no ledger at all. It may clear from `audit`; the record says
   `no acceptance ledger`.
