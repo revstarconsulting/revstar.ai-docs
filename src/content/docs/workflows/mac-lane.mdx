@@ -1,0 +1,297 @@
+---
+title: macOS QA lane (NoMac)
+description: Run the macOS release checks for a pair of commits on a rented Apple-silicon Mac from NoMac. Setup, the three steps, the monthly budget, reports, the stable release rule, and the limits.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note" title="0.12.4">
+New in 0.12.4. This page is for the workbench maintainer, not for client projects.
+</Aside>
+
+## What it is
+
+The **Mac lane** runs RevStar's macOS release checks on a Mac you rent by the minute. [NoMac](https://nomac.app)
+starts a fresh Apple-silicon Mac, the lane runs the checks on it for a given pair of commits (one in
+`revstar.ai`, one in `revstar.ai-registry`), copies the logs and screenshots back, and stops the Mac. The result is
+a report with evidence for that exact pair of commits.
+
+Before this, macOS was only verified on teammates' machines after a release. Now a candidate can be tested on a
+real Mac before it ships, from the same machine that does the local (WSL and PC) checks. The checks themselves are
+described in [The three steps](#the-three-steps).
+
+Everything goes through one module, `kiroctl/lib/nomac.js`. The `kiroctl nomac` commands and the app's
+**Settings → Mac QA lane** section are two front ends to it, so they always agree. The scripts that run on the Mac
+are in the `mac-lane/` folder of the `revstar.ai` repo.
+
+## Who it is for
+
+The workbench maintainer. The lane tests **RevStar's own repos** (`revstar.ai` and `revstar.ai-registry`) and never
+client code. Only those two repos are uploaded to NoMac. If you are using the workbench on a client project, you do
+not need any of this.
+
+## Setup
+
+Setup is done once on the maintainer machine. You need a NoMac account with credit.
+
+### 1. Store the NoMac key
+
+The key starts with `nmk_`. It is checked live with NoMac (a read-only credit call) before it is saved, and it is
+kept in kiroctl's secret store under the name `nomac.revstar`. It is never shown again and never printed.
+
+- **In the app:** open **Settings → Mac QA lane**, choose **Add NoMac key**, paste the key and save. **Replace key**,
+  **Test connection** and **Remove key** are in the same place.
+- **From a terminal:** the key is read from stdin so it never lands in shell history. Passing it as an argument is
+  refused.
+
+  ```sh
+  printf '%s' "$KEY" | kiroctl nomac key set
+  kiroctl nomac key test       # valid? credit left?
+  kiroctl nomac key remove     # turns the Mac lane off
+  ```
+
+The key goes only into the environment of the one `nomac` process that kiroctl starts for a run. It is never put in
+the environment of a chat session, and every line the lane prints or writes to a report is scrubbed of anything
+shaped like a key.
+
+### 2. Say where the two repos are
+
+The lane needs your local clones of the two repos, because it uploads commits from them.
+
+```sh
+kiroctl nomac config --cli-repo <dir> --registry-repo <dir>
+```
+
+This is saved in `<kiro home>/nomac/config.json` (`~/.kiro/nomac/config.json`). For each repo the lane uses, in order,
+the `--cli-repo` / `--registry-repo` flag of the command, then this config, then `KIRO_SYNC_CLI_REPO` /
+`KIRO_SYNC_REGISTRY_REPO`, then the repo recorded in the install manifest. When it finds none, the command stops and
+tells you to run `config`.
+
+### 3. Two read-only deploy keys on NoMac
+
+Step 2 of a run clones the repos from GitHub on the Mac. It does this with two **read-only GitHub deploy keys**, one
+per repo (GitHub does not allow one key on two repos), both titled `nomac-mac-lane`. Their private halves live in
+NoMac as **secret files**, so every Mac NoMac starts has them:
+
+| NoMac secret | Placed on the Mac at | What it is |
+| --- | --- | --- |
+| `MAC_LANE_KEY_REVSTAR_AI` | `~/.ssh/nomac_revstar_ai` | Deploy key for `revstarconsulting/revstar.ai`. |
+| `MAC_LANE_KEY_REVSTAR_AI_REGISTRY` | `~/.ssh/nomac_revstar_ai_registry` | Deploy key for `revstarconsulting/revstar.ai-registry`. |
+| `MAC_LANE_SSH_CONFIG` | `~/.ssh/config.d/nomac-mac-lane` | SSH host aliases `github-revstar-ai` and `github-revstar-ai-registry`. |
+
+The lane sets the key files to mode `600`, adds `Include ~/.ssh/config.d/*` to the Mac's SSH config, and clones from
+`git@github-revstar-ai:revstarconsulting/revstar.ai.git` and
+`git@github-revstar-ai-registry:revstarconsulting/revstar.ai-registry.git`. It refuses to clone from any other
+remote. A deploy key can read its own repo only, and a push with it is refused.
+
+**To revoke them:** delete the two `nomac-mac-lane` deploy keys in each repo's GitHub settings, then remove the three
+secrets from NoMac (`nomac secrets rm`, for each name above). Until they are set up again, step 2 reports a failed
+**R-SSH** check and the checks that need it are skipped.
+
+## The three steps
+
+A run is made of up to three steps. Each step starts its own fresh Mac, runs on the NoMac drive `revstar-qa` and
+writes one result for the report. One check that fails never stops the others. A check that needs an earlier one is
+skipped with `needs <id>` when that one did not pass.
+
+| Step | Started by | What it does |
+| --- | --- | --- |
+| 1. Candidate upload | every run | Uploads the two commits (committed files only, no `.git`, no `node_modules`, no secrets) to the Mac and installs and tests from those files. No GitHub credential is used. |
+| 2. Real GitHub path | every run, unless `--step candidate` | Clones both repos from GitHub over the deploy keys, then runs `kiroctl update` and a channel switch against `origin`. |
+| 3. App | `--full` or `--step app` only | Renders the kiroctl app's browser checks on the Mac. |
+
+Without a flag, `kiroctl nomac run` runs steps 1 and 2 on the head commit of each of the two repos. Use
+`--commit <sha>` and `--registry-commit <sha>` to pick other commits.
+
+### Step 1: candidate upload
+
+| Id | Check |
+| --- | --- |
+| `C-ENV` | The Mac itself: macOS version, chip, Node and git versions. |
+| `C-INSTALL` | A fresh install with `bootstrap-macos.sh` from the uploaded copy. |
+| `C-WHOAMI` | Whether Kiro is signed in on the Mac (see [Signed-in checks](#signed-in-checks-and-sign-in-on-mac)). |
+| `C-DOCTOR` | `kiroctl doctor` on the new install. |
+| `C-CLI-SELFTEST` | The kiroctl self-test. |
+| `C-GATE-SELFTEST` | The gate self-test. |
+| `C-CHANNEL` | The update and channel suite. A SKIP line in its output is a failure, except the two PowerShell-parse cases that skip on a Mac with no `pwsh`. |
+| `C-SANDBOX` | The macOS sandbox `HOME` paths. |
+| `C-RENDER` | The app rendered in a headless browser, with screenshots. |
+| `C-VOICE` | The delivery-video voice toolchain installs and reaches `READY`. |
+| `C-SIGNED-IN` | A real Kiro session that records telemetry. Needs a Kiro sign-in. |
+| `C-DRIVE` | The NoMac drive is under 1 GB. |
+
+### Step 2: real GitHub path
+
+| Id | Check |
+| --- | --- |
+| `R-ENV` | The Mac itself. |
+| `R-SSH` | Both deploy keys authenticate. |
+| `R-BOOTSTRAP` | The real `bootstrap-macos.sh` clones from GitHub, and both clones sit on the candidate commits. |
+| `R-WHOAMI` | Whether Kiro is signed in on the Mac. |
+| `R-DOCTOR` | `kiroctl doctor` on the cloned install. |
+| `R-LAUNCHAGENT` | The auto-update LaunchAgent: the plist, `StartInterval` 10800, `RunAtLoad`, `launchctl`, and that `off` and `on` and an `install.sh` re-run behave. |
+| `R-UPDATE-CHECK` | `kiroctl update --check`. |
+| `R-CHANNEL-STABLE` | `kiroctl update --channel stable --yes`, with both clones on `stable` at `origin/stable` and no failed `channel` row in `doctor`. |
+| `R-SIGNED-IN` | A real Kiro session that records telemetry. Needs a Kiro sign-in. |
+| `R-DRIVE` | The NoMac drive is under 1 GB. |
+
+Step 2 can only test a commit that is **on GitHub**. It needs each commit to be the tip of a branch on `origin` (a
+branch is enough, it need not be merged). If it is not, step 2 is skipped and the report says why. See
+[Troubleshooting](#troubleshooting).
+
+Because step 2 clones over SSH deploy keys, it does not exercise the HTTPS plus `gh` sign-in that a teammate's
+bootstrap uses. That path is covered by the local lane.
+
+### Step 3: the app
+
+Run with `kiroctl nomac run --full`. This adds the app step after the other two. It is meant for a full round on the
+Mac, not for every update.
+
+| Id | Check |
+| --- | --- |
+| `A-ENV` | The Mac itself. |
+| `A-BROWSER` | Playwright and the chromium headless shell install. |
+| `A-APP` | Every `qa-test-cases/gui-*-qa.js` script, then `gui-qa.js`, each on its own with screenshots. |
+| `A-DRIVE` | The NoMac drive is under 1 GB. |
+
+`--full` cannot be combined with `--step`. `--step` takes `candidate`, `real`, `both` or `app`.
+
+## Signed-in checks and Sign in on Mac
+
+Two checks (`C-SIGNED-IN`, `R-SIGNED-IN`) need a real Kiro session, so the Mac must be signed in to Kiro. The lane
+does not sign in by itself. It keeps the sign-in on the NoMac drive `revstar-qa`: the Mac's `kiro-cli` data folder is
+linked to `~/drive/kiro-auth`, so a sign-in outlives each Mac. The drive holds only that token cache. It is meant for
+a **dedicated test identity** (the `revstar` client's IAM Identity Center), never someone's personal credentials.
+
+At the start of each step the lane runs `kiro-cli whoami` on the Mac.
+
+- **Signed in:** everything runs, with nobody present.
+- **Not signed in, or expired:** `C-WHOAMI` / `R-WHOAMI` is skipped and the signed-in check is marked
+  **not run on Mac**, with the reason `Kiro sign-in expired` (a sign-in was done before) or `Kiro not signed in on the
+  Mac yet`. Every other check still runs. This is **never a failure**, and the report lists it under *Not run on Mac*.
+
+To sign in, choose **Sign in on Mac** on the app's Mac-lane card, or run:
+
+```sh
+kiroctl nomac signin [--client <slug>]
+```
+
+It starts a Mac on the `revstar-qa` drive, prepares it for the client's IAM Identity Center sign-in (the client
+defaults to `revstar`), and prints a link to the Mac's desktop, plus the sign-in page and code. You finish the sign-in
+there. When `whoami` says **Logged in**, the lane records that and **stops the Mac**. It also stops the Mac on a
+timeout (15 minutes), an error or a cancel. The app shows the link and the code, and **Stop the Mac** ends it early.
+
+To remove the stored sign-in, choose **Forget sign-in** or run `kiroctl nomac forget-signin`. This resets the whole
+drive, so the next run needs a new sign-in.
+
+<Aside type="caution" title="The token stays on NoMac's drive">
+Between runs, the test identity's session token lives on NoMac's encrypted drive. That is a recorded, accepted risk
+of the design. It is the reason the identity must be a dedicated one.
+</Aside>
+
+## The budget
+
+The Mac lane is paid for by the minute, so it has a **monthly budget** and nothing else. There is no per-run cap of
+RevStar's own. NoMac's built-in stop of **$5 per session** is the only limit on one Mac.
+
+| Part | How it works |
+| --- | --- |
+| Budget | Default **$10** a month (UTC calendar month). Change it in the card (**Edit budget**) or with `kiroctl nomac budget <usd>`. `kiroctl nomac budget --show` prints it. |
+| Spend | After each run, the lane records what it cost in `~/.kiro/nomac/spend.json`, per month. The amount is the drop in NoMac credit over the run. If the credit can't be read, it is estimated from the time each Mac ran, billed per minute (at NoMac's rate, or $0.90 an hour when that is unknown). The record says which of the two it is. |
+| Warning at 80% | The app shows an amber banner and the card shows the percentage used. The run still goes ahead. |
+| Exhausted | Either this month's spend has reached the budget, or NoMac has less than 10 minutes of credit left, or NoMac is blocking spending. |
+
+Before a run starts a Mac, it checks both the budget and the account's credit. If either is exhausted, **it does not
+run and does not fail anything**. The run is **deferred**:
+
+- The command prints `deferred: budget` (or `deferred: no NoMac key` when no key is stored) and exits **3**. The report's
+  verdict is `DEFERRED`.
+- The app shows a banner, **Mac QA lane**, naming the reason and the fix, and the Mac-lane card turns **red**. **Run Mac
+  lane** is disabled and says why.
+- **Get top-up link** (or `kiroctl nomac topup-link`) shows NoMac's payment page. It **buys nothing**. Adding credit
+  is always your own step. Raise the budget with **Edit budget** or `kiroctl nomac budget <usd>` if the budget, not
+  the credit, ran out.
+- Inside a [mission](/workflows/missions/), a budget or credit deferral writes a record next to the mission and prints
+  the command that adds the by-design criterion `budget-exhausted:mac-lane`. That criterion is never met, so the mission
+  finishes its other work and ends **PARTIAL** instead of waiting. See
+  [Clearing a mission](/workflows/missions/#clearing-a-mission).
+- A deferral never blocks beta, and nothing waits for funds. After you add funds, run the lane yourself.
+
+## Reports
+
+Each run is a folder in `~/.kiro/nomac/runs/<run id>/` with `report.json`, `report.md`, the logs, and screenshots from
+the Mac. The report names both commits and their branches, each step and check with its status, the checks that were
+**not run on Mac** and why, the spend, and the evidence files.
+
+```sh
+kiroctl nomac runs [--json]                       # every run, newest first
+kiroctl nomac report --run <id>                   # print report.md
+kiroctl nomac report --run <id> --json            # print report.json
+kiroctl nomac report --run <id> --out qa-reports  # attach it to a release
+```
+
+`--out <dir>` copies the whole run to `<dir>/mac-lane-<id>/`. Its `report.md` is the body for a pull-request comment:
+`gh pr comment <n> --body-file <dir>/mac-lane-<id>/report.md`. The app's card lists the last run for each pair of
+commits and shows the report under **Report**.
+
+`kiroctl nomac status [--json] [--live]` shows the key, the budget, the run in progress, the sign-in and the last runs.
+
+A run ends with one verdict, and `kiroctl nomac run` exits with it:
+
+| Exit | Verdict | Meaning |
+| --- | --- | --- |
+| 0 | `PASS` | Every requested step ran and nothing failed. |
+| 1 | `FAIL` or `ERROR` | A check failed, or a step produced no result, or the run could not start. |
+| 2 | `PARTIAL` | Nothing failed, but a step was skipped, for example step 2 because the commit is not on GitHub. |
+| 3 | `DEFERRED` | The budget or credit is used up, or there is no key. No Mac was started. |
+
+A run that is stopped (Ctrl-C, or **Cancel run** in the app) stops its Mac and is recorded as `ERROR` (cancelled).
+Only one run or sign-in can go at a time.
+
+## The release rule
+
+- **Beta (`v1`) lands on the local lane.** The release checks in `qa-test-cases/RELEASE-CHECKS.md` run as before. The
+  Mac lane runs on the same candidate and its report is attached to the release. A Mac failure opens a fix, but it
+  does not hold beta back, and neither does a NoMac outage or empty credit.
+- **Stable needs a passing Mac-lane run on the exact commits being promoted.** "Exact" means both full commit ids,
+  matched as a pair, with a run whose verdict is `PASS`. A `PARTIAL`, `FAIL` or `DEFERRED` run, or a run on a
+  different commit, does not count.
+
+Check it with:
+
+```sh
+kiroctl nomac verify --commit <cli-sha> --registry-commit <registry-sha>
+```
+
+It prints `VERIFIED` and exits 0 only when that pair has a `PASS` run, and otherwise prints the command to run.
+Short ids are accepted when the lane knows where the repos are. Two scripts in the `revstar.ai` repo enforce the rule,
+with no override:
+
+- `tools/promote-stable.sh` moves `stable` forward to the beta commits in both repos, only after `verify` passes. It
+  fast-forwards and never forces. Without `--push` it stops after the local move and prints the push commands.
+- `tools/sync-live.sh <cli-ref> <registry-ref> --channel stable` refuses a stable sync without the passing run.
+
+## Limits
+
+- **A person signs in once.** The Kiro sign-in needs your hands on the Mac's desktop, and again when it expires.
+  Until then the signed-in checks are *not run on Mac*.
+- **Mac runs are slow.** A step takes about 20 to 30 minutes. Each step is held to 55 minutes in all, and a check that
+  does not start before then is recorded as not run. A step also waits up to 10 minutes in NoMac's queue. The Mac is
+  billed for the time it runs.
+- **The channel switch back to beta is not run on the Mac.** Step 2 switches to `stable` with the candidate's own
+  `kiroctl`. A switch back would be run by the stable release's `kiroctl`, which is not the code under test.
+- **One run at a time.** NoMac allows one Mac at a time on this account, and the lane keeps a lock.
+- **Committed code only.** The lane uploads the commits, not your working folder. Uncommitted changes are not tested.
+- **SSH, not HTTPS.** Step 2 tests the clone over deploy keys. The HTTPS plus `gh` bootstrap path is tested locally.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `deferred: budget`, a red card, or **Run Mac lane** is disabled | The month's budget or the NoMac credit is used up. Raise the budget or add credit (**Get top-up link**), then run the lane again. |
+| `not run on Mac: Kiro sign-in expired` or `Kiro not signed in on the Mac yet` | Choose **Sign in on Mac** (or `kiroctl nomac signin`). |
+| `step 2 (real GitHub path) skipped: … is not the tip of any branch on origin` | Push the commit as a branch in the repo it names, then run again. |
+| `stable needs a passing Mac-lane run on these exact commits` | Run `kiroctl nomac run --commit <cli-sha> --registry-commit <registry-sha>` and wait for `PASS`. |
+
+See also [Troubleshooting](/reference/troubleshooting/) for the full list, and the
+[command reference](/reference/commands/) for every `kiroctl nomac` command.

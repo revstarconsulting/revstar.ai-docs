@@ -46,6 +46,7 @@ export default defineConfig({
             { label: 'Missions', slug: 'workflows/missions' },
             { label: 'QA & Design', slug: 'workflows/qa-and-design' },
             { label: 'Mobile app QA', slug: 'workflows/mobile-qa' },
+            { label: 'macOS QA lane (NoMac)', slug: 'workflows/mac-lane' },
             { label: 'Azure DevOps power', slug: 'workflows/azure-devops' },
           ],
         },
