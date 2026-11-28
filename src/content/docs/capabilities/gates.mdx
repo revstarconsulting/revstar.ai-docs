@@ -1,12 +1,12 @@
 ---
 title: Gates
-description: The 19 hooks wired into the agents. Five are armed by default (four safe ones, and mission-state-protect from 0.11.0), eight are always on, cloudcare-fence is always on for a report mission, the rest are inert until you arm them, and all but the fence fail open.
+description: The 20 hooks wired into the agents. Five are armed by default (four safe ones, and mission-state-protect from 0.11.0), nine are always on, cloudcare-fence is always on for a report mission, the rest are inert until you arm them, and all but the fence fail open.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Gates are hooks wired into the agents' tool calls. One property holds for eighteen of
-the nineteen, and two more describe when a gate is on. The exception is
+Gates are hooks wired into the agents' tool calls. One property holds for nineteen of
+the twenty, and two more describe when a gate is on. The exception is
 `cloudcare-fence` (0.12.3), which **fails closed**: see
 [The CloudCare fence](#the-cloudcare-fence-cloudcare-fence).
 
@@ -17,7 +17,7 @@ the nineteen, and two more describe when a gate is on. The exception is
 - **`mission-state-protect` is armed by default too (0.11.0, beta).** It does refuse, but
   only an agent's edit of mission state and a mission cleared before its audit. See
   [`mission-state-protect` is armed by default](#mission-state-protect-is-armed-by-default).
-- **Eight hooks are always on, and the other blocking gates are inert until armed.**
+- **Nine hooks are always on, and the other blocking gates are inert until armed.**
   The always-on hooks are `telemetry-emit`, `mc-signin-gate` and `mc-session-health`,
   which are always on because telemetry and the Mission Control sign-in are mandatory
   RevStar policy (see [Telemetry](/capabilities/telemetry/)); `mobile-guard` and
@@ -27,7 +27,8 @@ the nineteen, and two more describe when a gate is on. The exception is
   `broker-merge-gate` (0.10.0, beta), which registers a lane mission's merges with the broker and does nothing outside a
   lane (see [Missions in a lane](/workflows/missions/#missions-in-a-lane)); and
   `tool-watchdog` (0.11.0, beta), which ends a stuck tool call (see
-  [The stuck-tool watchdog](#the-stuck-tool-watchdog)).
+  [The stuck-tool watchdog](#the-stuck-tool-watchdog)); and `subagent-budget` (0.12.5, beta), which gives every
+  sub-agent a time budget (see [The sub-agent time budget](#the-sub-agent-time-budget)).
   Every other gate does nothing until a `.enabled` flag file exists for it. Arm those
   globally or per project:
 
@@ -54,7 +55,7 @@ gate should be stopping something and isn't, confirm the flag file exists
 before assuming the rule doesn't apply.
 </Aside>
 
-## The nineteen gates
+## The twenty gates
 
 | Gate | Trigger | Kind | What it does |
 | --- | --- | --- | --- |
@@ -76,6 +77,7 @@ before assuming the rule doesn't apply.
 | `mission-pause` | Every tool call (`dev`, `coder`, `scout`) | always-on block | The emergency brake. Refuses every tool call in a session whose mission a person paused, and in every session on the machine while **Stop all agents** is on. Lets only the `goal` completion tool through. Fails open on its own errors. See [Stopping a mission](/workflows/missions/#stopping-a-mission). |
 | `broker-merge-gate` | shell (`dev`, `coder`) | always-on block | **0.10.0.** In a lane repo during a mission, registers the PR under the mission's broker lease (`add-pr`) before `gh pr merge` goes through. Refuses the merge when the broker says the mission doesn't hold the lane (naming the holder), while the mission is queued or its lane is lost, and for `gh pr merge --auto`. Lets the merge through with a warning when the broker can't be asked on a fail-open lane. Does nothing outside a lane repo or a mission. See [below](#what-broker-merge-gate-refuses). |
 | `tool-watchdog` | Every tool call, pre and post (`dev`, `coder`, `scout`) | always-on | **0.11.0.** Ends a tool call that has run for 30 minutes without a result, and a chat stuck between tools after 20 minutes with no hook event and no tool process. A person can turn it off with `tool-watchdog.disabled`. See [The stuck-tool watchdog](#the-stuck-tool-watchdog). |
+| `subagent-budget` | Every tool call, pre (`dev`, `coder`, `scout`), right after `tool-watchdog` | always-on block, sub-agents only | **0.12.5.** Gives every sub-agent a time budget: at 60 and 75 minutes its next call is refused once with a wrap-up message, at 90 minutes only saving and reporting are allowed, and after 10 refused calls only its final report. Also refuses `gates/selftest.js` from a sub-agent. Never refuses the main chat. A person can turn it off with `subagent-budget.disabled`. See [The sub-agent time budget](#the-sub-agent-time-budget). |
 | `cloudcare-fence` | Every tool call (`dev`, `coder`, `scout`) | always-on block, **fails closed** | **0.12.3.** Active only while a [`report` mission](/workflows/missions/#the-report-mission-cloudcare) runs. Lets the agent reach client AWS only through `./cloudcare.sh clients\|check\|collect\|draft\|build\|render`, and locks the CloudCare repo's code. Does nothing when no report mission is active, and has no switch. See [The CloudCare fence](#the-cloudcare-fence-cloudcare-fence). |
 
 ## What `broker-merge-gate` refuses
@@ -381,6 +383,14 @@ otherwise leaves an autonomous mission waiting forever.
 - Sub-agents are covered the same way: a stuck command inside a sub-agent is ended, and the sub-agent and its parent carry on.
 - A sub-agent that goes quiet for 30 minutes with no command running is reported as **quiet** (it can't be ended from outside).
   See it with `node <pack>/gates/tool-watchdog.js status`.
+- **0.12.5.** `status` tells the truth about sub-agents and refused calls:
+  - a sub-agent whose last call was its final report (`summary`) reads **FINISHED**, even while its parent's delegation
+    call is still open (before, it read quiet);
+  - a call that another hook refused (it has no result, and a later call followed) is no longer listed as open. Each session
+    gets a separate `refused by another hook: N call(s)` line instead of an "open 138 min" entry;
+  - each sub-agent shows its [budget](#the-sub-agent-time-budget) state, and a finished or walled one shows the path of its
+    saved conversation (`~/.kiro/sessions/cli/<id>.jsonl`);
+  - the last line counts the budget's nudges, walls and ended chats over the last 7 days.
 - Calls that wait for a person (`user_input`) and the `subagent` call itself are never ended.
 - A person can turn it off with `~/.kiro/gates/tool-watchdog.disabled`. Agents can't create that file.
 
@@ -420,6 +430,50 @@ you start in that folder tells you once:
 - `KIRO_STALL_END_INTERACTIVE=0` keeps the check but never ends a non-mission chat (you only get the notice).
 - `node <pack>/gates/tool-watchdog.js status` lists recently ended chats with their resume commands.
 - Chats on the older v1 engine are not covered yet.
+
+### Recovering sub-agent reports
+
+**0.12.5.** When a delegation is interrupted (a person's Ctrl+C, or the [budget's last resort](#the-sub-agent-time-budget)),
+the sub-agents that had finished still have their reports on disk. Read them instead of redoing the work:
+
+```sh
+node <pack>/gates/tool-watchdog.js reports <parent session id>          # the 8-character prefix status prints is enough
+node <pack>/gates/tool-watchdog.js reports <parent session id> --json
+```
+
+It lists every sub-agent of that session (and their own sub-agents), each with its task, its saved conversation, and its
+final report: the text the sub-agent passed to its `summary` call. A sub-agent that never called `summary` is marked
+**NO FINAL REPORT (unfinished)**, with its last message. The command only reads.
+
+## The sub-agent time budget
+
+**0.12.5.** On 2026-11-25 one of seven delegated sub-agents re-ran the full gates selftest for two hours and never returned.
+The parent waited on the delegation for 2 h 20 min, and a person's Ctrl+C dropped the six finished results with it. Neither
+the 30-minute tool limit (each selftest run finished in time) nor the stuck-chat check (something was always running)
+could fire. `subagent-budget` now gives **every** sub-agent the same budget, inside a mission or not:
+
+| Time since the sub-agent's first tool call | What happens |
+| --- | --- |
+| **60 minutes** | Its next tool call is refused once with a wrap-up message: the parent is waiting, commit or write down what you have, and return with your report. The same call re-issued goes through. |
+| **75 minutes** | The same nudge once more. |
+| **90 minutes** (the wall) | Only finishing calls pass: reading and searching files, read-only shell commands (`ls`, `cat`, `grep`, `git log`), `git add`, `git commit`, `git status` and `git diff` in any checkout, and the final report (`summary`). Every other call (an edit, a test, a build, `git push`, `checkout`, `switch`, `reset`, `merge`, `rebase`) is refused with: *time is up: commit what you have, even if unfinished, and report now, saying what is untested and what is left.* The parent session gets a `[subagent-budget]` notice naming the sub-agent; in a mission it rides in the next continue prompt. |
+| after **10 refused calls** behind the wall | Only `summary` passes, and the refusal says so. |
+| **120 minutes** (30 minutes after the wall) | In a **pre-approved mission** (its sentinel and `.preapproved` file exist at that moment) the watchdog ends the chat, the same way it ends a stuck chat, so the mission resumes. Recover the finished reports with [`reports`](#recovering-sub-agent-reports); only the runaway's unsaved work is lost. Anywhere else the chat is **never** ended: the parent and the person get a notice instead. |
+
+- The wall itself never ends anything: the sub-agent saves its work and reports, and the parent receives that report.
+- It acts only on a session the watchdog identified as a sub-agent (one that first appeared while another session in the same
+  Kiro process had a delegation open). A sub-agent's own sub-agent is timed on its own clock. **The main chat is never refused.**
+- **A sub-agent never runs `gates/selftest.js`**, in any form (with or without a section name, fast or full, through
+  `timeout`, `bash -c` or `npx`). The refusal names the test files to run instead and says the orchestrator runs the
+  selftest once per phase. Reading the file is fine.
+- Change the budget per machine with `KIRO_SUBAGENT_BUDGET_MIN` (default 60) and `KIRO_SUBAGENT_GRACE_MIN` (default 30); both
+  take fractions of a minute. The second nudge comes at budget + half the grace, the wall at budget + grace, the last resort
+  at budget + twice the grace. A deliberately long job raises `KIRO_SUBAGENT_BUDGET_MIN` first.
+- A person can turn it off with a `subagent-budget.disabled` file in `~/.kiro/gates/`. Agents can't create that file. It fails
+  open: any error allows the call.
+- `node <pack>/gates/tool-watchdog.js status` shows each sub-agent's budget state, and `kiroctl doctor` has a
+  `subagent-budget` row with the nudges, walls and ended chats of the last 7 days.
+
 ## Mission Control sign-in
 
 RevStar SOP standards and adoption telemetry both run under your **Mission
@@ -547,6 +601,21 @@ passing through, resume). Scope the selftest to one gate or get verbose output:
 node kiro/gates/selftest.js qa
 node kiro/gates/selftest.js --verbose
 ```
+
+**0.12.5.** A section name now skips work. `node kiro/gates/selftest.js <name>` runs a slow suite only when the name is
+part of its label or its file name (`phases`, `deferrals`, `broker-lanes`, `tool-watchdog`, `subagent-budget`, ...).
+Before, a name only hid rows: every slow suite still ran first, 10 to 20 minutes each. Every suite it skips is listed with
+the command that runs it directly, so a narrow name never silently tests nothing:
+
+```
+"phases" did not select 42 slow suite(s); they were NOT run. Run the ones your change touches directly:
+  node bin/test-grill-receipt.js    (grill-receipt)
+  node bin/test-mission-deferrals.js    (deferrals)
+  ...
+```
+
+A run with no name is unchanged; the install-time run and the release check behave as before. Sub-agents are told to
+run the `bin/test-*.js` files for what they changed instead (see [Agents](/capabilities/agents/)).
 
 To see the real payload a gate receives when it doesn't fire as expected:
 

@@ -35,6 +35,12 @@ or fork.
 Use it for: implementation work delegated by `dev`, not invoked directly for
 open-ended tasks.
 
+**0.12.5.** It runs the `bin/test-*.js` files for what it changed, never
+`gates/selftest.js` (with or without a section name): `dev` runs the gates selftest
+once per phase, and the `subagent-budget` gate refuses it from a sub-agent. It works
+to a [time budget](/capabilities/gates/#the-sub-agent-time-budget): told to wrap up
+at 60 minutes, and from 90 minutes allowed only to commit and report.
+
 ## `scout` — read-only lookups
 
 Model: **`claude-sonnet-5.5`**.
@@ -43,6 +49,9 @@ Cheap file and symbol search — "where is X defined", "does this repo use Y".
 `write` and `shell` are denied, so it can gather but never change anything.
 
 Use it for: fast lookups you'd otherwise burn `dev`'s context on.
+
+**0.12.5.** It never runs `gates/selftest.js`, and the same
+[time budget](/capabilities/gates/#the-sub-agent-time-budget) applies.
 
 ## Model-routing rule
 
